@@ -1,0 +1,5 @@
+./evaluation_log.json
+./saved_model.keras
+/.venv/
+/.idea/
+__pycache__/

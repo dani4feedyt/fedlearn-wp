@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Browser Federated Learning Demo</title>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 25px;
+    }
+
+    #drawCanvas {
+      border: 2px solid #333;
+      background: white;
+      touch-action: none;
+    }
+
+    #mnistPreview {
+      border: 2px solid #333;
+      margin-top: 10px;
+    }
+
+    #log {
+      width: 600px;
+      height: 200px;
+      border: 1px solid #444;
+      padding: 10px;
+      white-space: pre;
+      overflow-y: scroll;
+      background: #fafafa;
+    }
+
+    .section {
+      margin-top: 25px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+    }
+
+    button {
+      margin-right: 10px;
+      margin-top: 5px;
+      padding: 8px 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Browser Federated Learning Demo</h2>
+  <div id="status"><b>Status:</b> idle</div>
+
+  <div class="section">
+    <h3>Draw a Digit (0–9)</h3>
+
+    <canvas id="drawCanvas" width="280" height="280"></canvas>
+    <canvas id="mnistPreview" width="280" height="280"></canvas>
+
+    <br>
+
+    <label>
+      Label:
+      <input type="number" id="digitLabel" min="0" max="9" value="0" style="width:50px;">
+    </label>
+    <br><br>
+
+    <button id="saveDrawingBtn">Save Drawing as Sample</button>
+    <button id="clearBtn">Clear</button>
+
+    <label for="uploadImage" class="btn">Select Image</label>
+    <input type="file" id="uploadImage" style="display:none;" accept="image/*">
+    <button id="uploadBtn">Upload image as Sample</button>
+
+    <p style="font-size: 0.9em; color:#333;">
+      The provided drawing or image will be resized to 28×28 and converted to grayscale.
+    </p>
+  </div>
+
+<div class="section">
+  <div id="prediction_body" style="margin-top:12px; display:flex; align-items:flex-start; gap:24px;">
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <h3>Model Prediction</h3>
+
+      <button id="predictBtn" style="align-self:flex-start;">Predict Drawn Digit</button>
+
+      <div id="prediction" style="font-size:1.5em; font-weight:bold;">-:-</div>
+
+      <div id="feedbackArea" style="display:flex; flex-direction:column; gap:6px;">
+        <div>
+          <strong>Last prediction:</strong>
+          <span id="lastPredictionText">-:-</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label>Is predicted number correct?</label>
+          <button id="feedbackYesBtn">Yes</button>
+          <button id="feedbackNoBtn">No</button>
+
+          <span id="correctionUI" style="display:none; margin-left:10px; align-items:center;">
+            Correct label:
+            <input id="correctLabelInput" type="number" min="0" max="9" style="width:60px; margin-left:4px;">
+            <button id="submitCorrectionBtn">Submit</button>
+          </span>
+        </div>
+      </div>
+    </div>
+    <canvas id="predictionBars" width="280" height="220"></canvas>
+  </div>
+</div>
+
+
+  <div class="section">
+    <h3>Model Accuracy between rounds</h3>
+
+    <canvas id="accuracyChart" width="700" height="280" style="border:1px solid #333;"></canvas>
+
+    <div style="margin-top:8px; font-size:0.9em;">
+        Community evaluated accuracy (latest): <span id="userAccDisplay">N/A</span>
+        &nbsp;|&nbsp; MNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
+    </div>
+<!--    <button id="initBtn">Check Global Model</button>-->
+    <button id="trainBtn">Train Locally & Send Update</button>
+    <button id="evalBtn">Evaluate and plot</button>
+<!--    <button id="logBtn">Show Evaluation Log</button>-->
+  </div>
+
+
+  <div class="section">
+    <h3>Global Model State</h3>
+    <button id="showModelBtn">Show/Refresh Global Model</button>
+    <pre id="modelState" style="height:150px; overflow-y:auto; background:#fff; border:1px solid #ccc; padding:10px;"></pre>
+    <h3>Log Output</h3>
+    <div id="log"></div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
