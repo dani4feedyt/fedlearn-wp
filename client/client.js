@@ -338,7 +338,6 @@ async function predictDrawnDigit() {
       ctx.fillText(probText, textX, y + barHeight / 2);
     }
 
-    drawCombinedAccuracyChartCached();
 
     xs.dispose();
     pred.dispose();
@@ -592,6 +591,10 @@ async function submitUserFeedback(label) {
   }
 }
 
+function updateTimestamp() {
+  const now = new Date().toLocaleString();
+  document.getElementById("lastUpdated").textContent = "Last updated: " + now;
+}
 
 let drawCombinedAccuracyChartCached = (function () {
   let running = false;
@@ -602,12 +605,13 @@ let drawCombinedAccuracyChartCached = (function () {
   };
 })();
 
-// schedule main chart refresh every minute, need to sync with round_freq in main
-setInterval(() => drawCombinedAccuracyChartCached(), 60_000);
-
 function refreshChart() {
   drawCombinedAccuracyChartCached();
+  updateTimestamp();
 }
+
+// schedule main chart refresh every minute, need to sync with round_freq in main
+setInterval(refreshChart, 60_000);
 
 
 window.onload = () => {
