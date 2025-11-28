@@ -263,7 +263,6 @@ async function submitUpdate(serialized, size) {
 async function predictDrawnDigit() {
   try {
     console.log("predictDrawnDigit called");
-    renderMNISTPreview();
 
     const gm = await fetchGlobalModel();
     if (!gm.initialized) {
@@ -276,7 +275,7 @@ async function predictDrawnDigit() {
     await loadWeightsIntoModel(model, gm);
 
     const arr = preprocessCanvasToMNIST();
-    const xs = tf.tensor2d([Array.from(arr)], [1, 784]);
+    const xs = tf.tensor2d([arr], [1, 784]);
 
     const pred = model.predict(xs);
     const predData = await pred.data();
@@ -371,7 +370,7 @@ async function localTrainAndSubmit(batchData = null) {
   const gm = await fetchGlobalModel();
   if (gm.initialized) await loadWeightsIntoModel(model, gm);
 
-  const xs = tf.tensor2d(dataToTrain.map(s => Array.from(s.x)), [dataToTrain.length, 784]);
+  const xs = tf.tensor2d(dataToTrain.map(s => s.x), [dataToTrain.length, 784]);
   const ys = tf.oneHot(tf.tensor1d(dataToTrain.map(s => s.y), 'int32'), 10);
 
   await model.fit(xs, ys, {
@@ -399,7 +398,6 @@ async function localTrainAndSubmit(batchData = null) {
 
 async function handleUserFeedback(label) {
   const arr = preprocessCanvasToMNIST();
-  localData.push({ x: arr, y: label });
   feedbackQueue.push({ x: arr, y: label });
 
   log(`Feedback sample added (label=${label}). Queue length=${feedbackQueue.length}`);
@@ -558,7 +556,7 @@ async function drawCombinedAccuracyChart() {
 }
 
 
-async function submitUserFeedback(label) {
+async function sendFeedbackToServer(label) {
   const lastPrediction = parseInt(document.getElementById('lastPredictionText').textContent);
   if (isNaN(lastPrediction)) return;
 
@@ -632,7 +630,7 @@ window.onload = () => {
 
   document.getElementById('feedbackYesBtn').onclick = async () => {
     const lastPrediction = parseInt(document.getElementById('lastPredictionText').textContent);
-    if (!isNaN(lastPrediction)) await submitUserFeedback(lastPrediction);
+    if (!isNaN(lastPrediction)) await sendFeedbackToServer(lastPrediction);
   };
 
   document.getElementById('feedbackNoBtn').onclick = () => {
@@ -643,19 +641,18 @@ window.onload = () => {
     const correctLabel = parseInt(document.getElementById('correctLabelInput').value);
     if (!isNaN(correctLabel)) {
       document.getElementById('correctionUI').style.display = 'none';
-      await submitUserFeedback(correctLabel);
+      await sendFeedbackToServer(correctLabel);
     }
   };
 
   const btn = document.getElementById('predictBtn');
   if (!btn) {
     console.warn("Predict button not found!");
-    return;
   }
-  btn.onclick = async (e) => {
-    e.preventDefault();
-    await predictDrawnDigit();
-  };
+  else btn.onclick = async (e) => {
+      e.preventDefault();
+      await predictDrawnDigit();
+    };
 
   document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
