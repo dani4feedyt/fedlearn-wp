@@ -1,5 +1,5 @@
-./evaluation_log.json
-./saved_model.keras
+server/evaluation_log.json
+server/saved_model.keras
 /.venv/
 /.idea/
 __pycache__/
