@@ -6,10 +6,8 @@ from tensorflow.keras import layers, models
 from keras.datasets import mnist
 import threading
 from threading import Lock
-import os
-import time
+import os, time
 from datetime import datetime
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIR = os.path.join(BASE_DIR, "..", "client")
@@ -19,15 +17,19 @@ LOG_FILE = "evaluation_log.json"
 global_model = None
 global_model_initialized = False
 weight_shapes = None
-eval_log = []
+
 round_index = 0
+pending_updates = []
 lock = Lock()
+round_freq = 60
+
+eval_log = []
 community_feedback = {}
 
 
 (_, _), (x_test, y_test) = mnist.load_data()
 x_test = x_test.astype("float32") / 255.0
-x_test = x_test.reshape(-1, 28 * 28)
+x_test = x_test.reshape(-1, 28*28)
 y_test = tf.keras.utils.to_categorical(y_test, 10)
 
 
@@ -45,9 +47,9 @@ def create_model():
 
 
 def set_model_weights(model, weights_arrays, shapes):
-    tensors = [tf.constant(arr, shape=shape, dtype=tf.float32)
+    tensors = [np.array(arr, dtype=np.float32).reshape(shape)
                for arr, shape in zip(weights_arrays, shapes)]
-    model.set_weights([t.numpy() for t in tensors])
+    model.set_weights(tensors)
 
 
 def extract_weights(model):
@@ -60,10 +62,9 @@ def extract_weights(model):
 def load_global_model_if_exists():
     global global_model, global_model_initialized, weight_shapes
     if os.path.exists("saved_model.keras"):
-        print("Loading saved global model...")
+        print("Loading saved global model…")
         global_model = tf.keras.models.load_model("saved_model.keras")
-        _, shapes = extract_weights(global_model)
-        weight_shapes = shapes
+        _, weight_shapes = extract_weights(global_model)
         global_model_initialized = True
         return True
     return False
@@ -84,9 +85,6 @@ def load_eval_log():
             if "community_votes" in entry:
                 community_feedback[entry["round"]] = entry["community_votes"]
         round_index = eval_log[-1]["round"] if eval_log else 0
-        print("Loaded evaluation log from disk.")
-    else:
-        print("No evaluation log found; starting fresh.")
 
 
 load_global_model_if_exists()
@@ -99,51 +97,80 @@ app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
 def get_model():
     if not global_model_initialized:
         return jsonify({"initialized": False})
+
     arrays, shapes = extract_weights(global_model)
     return jsonify({"initialized": True, "weights": arrays, "shapes": shapes})
 
 
 @app.route("/submit_update", methods=["POST"])
 def submit_update():
-    global global_model, global_model_initialized, weight_shapes
+    global pending_updates, weight_shapes, global_model_initialized
+
+    data = request.json
+    client_weights = data["weights"]
+    client_shapes = data["shapes"]
+    client_size = data["client_size"]
 
     with lock:
-        data = request.json
-        client_weights = data["weights"]
-        client_shapes = data["shapes"]
-        client_size = data["client_size"]
 
         if not global_model_initialized:
             global_model = create_model()
             weight_shapes = client_shapes
             global_model_initialized = True
             global_model.save("saved_model.keras")
-            print("Initialized new global model.")
 
-            submit_update.accumulated = [np.zeros(shape, dtype=np.float32)
-                                         for shape in client_shapes]
-            submit_update.total_size = 0
+        pending_updates.append({
+            "weights": client_weights,
+            "shapes": client_shapes,
+            "client_size": client_size
+        })
 
-        if not hasattr(submit_update, "accumulated"):
-            submit_update.accumulated = [np.zeros(shape, dtype=np.float32)
-                                         for shape in client_shapes]
-            submit_update.total_size = 0
-            print("Recreated accumulators after restart.")
+        print(f"Received update for round {round_index+1}. "
+              f"Updates waiting: {len(pending_updates)}")
 
-        client_arrays = [np.array(w, dtype=np.float32).reshape(shape)
-                         for w, shape in zip(client_weights, client_shapes)]
+    return jsonify({"status": "stored", "pending_updates": len(pending_updates)})
 
-        for i in range(len(client_arrays)):
-            submit_update.accumulated[i] += client_arrays[i] * client_size
 
-        submit_update.total_size += client_size
-        averaged = [wsum / submit_update.total_size for wsum in submit_update.accumulated]
+def perform_fedavg_round():
+    global pending_updates, global_model, weight_shapes, round_index
 
-        global_model.set_weights(averaged)
-        global_model.save("saved_model.keras")
-        print("Saved updated global model via FedAvg.")
+    if not pending_updates:
+        print("No updates to aggregate this round.")
+        return None
 
-        return jsonify({"status": "update applied", "round_index": round_index})
+    print(f"Aggregating {len(pending_updates)} updates (FedAvg)…")
+
+    accum = [np.zeros(shape, dtype=np.float32) for shape in weight_shapes]
+    total_size = 0
+
+    for update in pending_updates:
+        weights = [np.array(w, dtype=np.float32).reshape(shape)
+                   for w, shape in zip(update["weights"], update["shapes"])]
+        size = update["client_size"]
+
+        for i in range(len(weights)):
+            accum[i] += weights[i] * size
+        total_size += size
+
+    averaged = [wsum / total_size for wsum in accum]
+
+    global_model.set_weights(averaged)
+    global_model.save("saved_model.keras")
+
+    pending_updates = []
+
+    print("FedAvg applied successfully.")
+    return True
+
+
+@app.route("/finish_round")
+def finish_round():
+    with lock:
+        ok = perform_fedavg_round()
+        if ok:
+            return evaluate_model()
+        else:
+            return jsonify({"status": "no_updates"})
 
 
 def compute_global_community_accuracy():
@@ -161,8 +188,8 @@ def evaluate_model():
         return jsonify({"initialized": False})
 
     loss, acc = global_model.evaluate(x_test, y_test, verbose=0)
-    round_index += 1
 
+    round_index += 1
     community_acc = compute_global_community_accuracy()
 
     entry = {
@@ -176,32 +203,19 @@ def evaluate_model():
 
     eval_log.append(entry)
     save_eval_log()
-    return jsonify(entry)
+
+    return entry
 
 
 def evaluation_worker():
-    global round_index
-    while True:
-        time.sleep(60)
-        if global_model_initialized:
-            loss, acc = global_model.evaluate(x_test, y_test, verbose=0)
-            round_index += 1
-
-            community_acc = compute_global_community_accuracy()
-
-            entry = {
-                "round": round_index,
-                "loss": float(loss),
-                "accuracy_model": float(acc),
-                "accuracy_community": community_acc,
-                "community_votes": community_feedback.get(round_index, []),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-
-            eval_log.append(entry)
-            save_eval_log()
-            print(f"[AUTO-EVAL] Round={round_index} acc={acc:.4f} "
-                  f"loss={loss:.4f} community_acc={community_acc}")
+    with app.app_context():
+        while True:
+            time.sleep(round_freq)
+            with lock:
+                if pending_updates:
+                    print("[AUTO] Finishing FL round…")
+                    perform_fedavg_round()
+                    evaluate_model()
 
 
 @app.route("/submit_user_feedback", methods=["POST"])
@@ -210,11 +224,12 @@ def submit_user_feedback():
 
     data = request.json
     user_accuracy = float(data["user_accuracy"])
-
     key = round_index
+
     community_feedback.setdefault(key, []).append(user_accuracy)
 
     avg_acc = compute_global_community_accuracy()
+
     if eval_log:
         eval_log[-1]["accuracy_community"] = avg_acc
         eval_log[-1]["community_votes"] = community_feedback.get(round_index, [])
@@ -224,7 +239,7 @@ def submit_user_feedback():
 
 
 @app.route("/evaluation_log")
-def evaluation_log():
+def evaluation_log_route():
     return jsonify(eval_log)
 
 
@@ -235,5 +250,5 @@ def serve_index():
 
 if __name__ == "__main__":
     threading.Thread(target=evaluation_worker, daemon=True).start()
-    print("Starting server with auto-evaluation enabled.")
+    print("Server started with true round-based federated averaging.")
     app.run(host="0.0.0.0", port=5000, debug=True)

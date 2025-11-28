@@ -7,6 +7,7 @@ function log(msg) {
     `[${new Date().toLocaleTimeString()}] ` + msg + "\n" + logDiv.textContent;
 }
 
+
 (function setupCanvas() {
   const canvas = document.getElementById('drawCanvas');
   const ctx = canvas.getContext('2d');
@@ -49,6 +50,7 @@ function log(msg) {
     renderMNISTPreview();
   };
 })();
+
 
 function preprocessCanvasToMNIST() {
   const src = document.getElementById("drawCanvas");
@@ -131,6 +133,7 @@ function preprocessCanvasToMNIST() {
     const r = small.data[i * 4];
     out[i] = (255 - r) / 255;
   }
+
   return out;
 }
 
@@ -220,7 +223,6 @@ function createModel() {
   return m;
 }
 
-
 async function serializeModelWeights(model) {
   const weights = model.getWeights();
   const shapes = weights.map(w => w.shape);
@@ -264,8 +266,6 @@ async function predictDrawnDigit() {
     renderMNISTPreview();
 
     const gm = await fetchGlobalModel();
-    console.log("Global model fetched:", gm);
-
     if (!gm.initialized) {
       document.getElementById('prediction').textContent =
         "Global model not initialized";
@@ -281,7 +281,7 @@ async function predictDrawnDigit() {
     const pred = model.predict(xs);
     const predData = await pred.data();
 
-    let maxProb = 0;
+    let maxProb = -1;
     let idx = 0;
     for (let i = 0; i < predData.length; i++) {
       if (predData[i] > maxProb) {
@@ -296,8 +296,6 @@ async function predictDrawnDigit() {
 
     const barCanvas = document.getElementById('predictionBars');
     const ctx = barCanvas.getContext('2d');
-
-
     ctx.clearRect(0, 0, barCanvas.width, barCanvas.height);
 
     const leftMargin = 40;
@@ -306,38 +304,39 @@ async function predictDrawnDigit() {
     const bottomMargin = 10;
     const n = predData.length;
 
-    const availableHeight = barCanvas.height - topMargin - bottomMargin;
-    const barHeight = availableHeight / n * 0.7;
-    const gap = availableHeight / n * 0.3;
+    const availableHeight = Math.max(100, barCanvas.height - topMargin - bottomMargin);
+    const slot = availableHeight / n;
+    const barHeight = Math.max(8, slot * 0.65);
+    const gap = Math.max(2, slot * 0.35);
     const maxWidth = barCanvas.width - leftMargin - rightMargin;
 
     ctx.font = "12px Arial";
     ctx.textBaseline = "middle";
 
     for (let i = 0; i < n; i++) {
-  const y = topMargin + i * (barHeight + gap);
+      const y = topMargin + i * (barHeight + gap);
 
-  ctx.fillStyle = "#eee";
-  ctx.fillRect(leftMargin, y, maxWidth, barHeight);
+      ctx.fillStyle = "#eee";
+      ctx.fillRect(leftMargin, y, maxWidth, barHeight);
 
-  const barWidth = predData[i] * maxWidth;
-  ctx.fillStyle = i === idx ? "#ff8800" : "#0077ff";
-  ctx.fillRect(leftMargin, y, barWidth, barHeight);
+      const barWidth = predData[i] * maxWidth;
+      ctx.fillStyle = i === idx ? "#ff8800" : "#0077ff";
+      ctx.fillRect(leftMargin, y, barWidth, barHeight);
 
-  ctx.fillStyle = "#000";
-  ctx.textAlign = "right";
-  ctx.fillText(i, leftMargin - 5, y + barHeight / 2);
+      ctx.fillStyle = "#000";
+      ctx.textAlign = "right";
+      ctx.fillText(i, leftMargin - 8, y + barHeight / 2);
 
-  ctx.fillStyle = "#000";
-  ctx.textAlign = "left";
-  const probText = (predData[i] * 100).toFixed(1) + "%";
+      ctx.textAlign = "left";
+      const probText = (predData[i] * 100).toFixed(1) + "%";
+      const measured = ctx.measureText(probText).width;
+      const insideX = leftMargin + Math.max(4, barWidth - measured - 4);
+      const outsideX = leftMargin + barWidth + 6;
+      const textX = barWidth > measured + 8 ? insideX : outsideX;
 
-  const textX = barWidth > 30
-    ? leftMargin + barWidth - ctx.measureText(probText).width - 3
-    : leftMargin + barWidth + 5;
-
-  ctx.fillText(probText, textX, y + barHeight / 2);
-}
+      ctx.fillStyle = barWidth > measured + 8 ? "#fff" : "#000";
+      ctx.fillText(probText, textX, y + barHeight / 2);
+    }
 
     drawCombinedAccuracyChartCached();
 
@@ -405,7 +404,6 @@ async function handleUserFeedback(label) {
   feedbackQueue.push({ x: arr, y: label });
 
   log(`Feedback sample added (label=${label}). Queue length=${feedbackQueue.length}`);
-  //refreshChart();
 
   if (feedbackTimeout) clearTimeout(feedbackTimeout);
   feedbackTimeout = setTimeout(async () => {
@@ -417,12 +415,10 @@ async function handleUserFeedback(label) {
   }, FEEDBACK_BATCH_DELAY);
 }
 
-
 const accCanvas = document.getElementById("accuracyChart");
 const accCtx = accCanvas.getContext("2d");
 const userAccDisplay = document.getElementById("userAccDisplay");
 const mnistAccDisplay = document.getElementById("mnistAccDisplay");
-
 
 async function fetchEvaluationLogForChart() {
   try {
@@ -455,6 +451,7 @@ function downsampleSeries(values, times, maxPoints = 150) {
   return { values: newValues, times: newTimes };
 }
 
+
 async function drawCombinedAccuracyChart() {
   const evalLog = await fetchEvaluationLogForChart();
 
@@ -466,23 +463,24 @@ async function drawCombinedAccuracyChart() {
     return;
   }
 
-  let modelAcc = evalLog.map(e => e.accuracy_model || 0);
-  let rounds = evalLog.map((e, i) => i);
-
-  const dsModel = downsampleSeries(modelAcc, rounds, 150);
-  const dsModelAcc = dsModel.values;
-  const dsRounds = dsModel.times;
+  const rounds = evalLog.map(e => e.round);
+  const modelAcc = evalLog.map(e => e.accuracy_model ?? 0);
 
   let allVotes = [];
-  let communitySeries = evalLog.map(e => {
-    if (e.community_votes?.length) allVotes.push(...e.community_votes);
+  const communityCumulative = evalLog.map(e => {
+    if (Array.isArray(e.community_votes) && e.community_votes.length) {
+      allVotes.push(...e.community_votes);
+    }
     return allVotes.length ? allVotes.reduce((a,b)=>a+b,0)/allVotes.length : 0;
   });
 
-  const dsCommunity = downsampleSeries(communitySeries, rounds, 150).values;
+  const dsModel = downsampleSeries(modelAcc, rounds, 150);
+  const dsCommunity = downsampleSeries(communityCumulative, rounds, 150);
+
+  const dsRounds = dsModel.times;
 
   mnistAccDisplay.textContent = (modelAcc[modelAcc.length - 1] * 100).toFixed(2) + "%";
-  userAccDisplay.textContent = (communitySeries[communitySeries.length - 1] * 100).toFixed(2) + "%";
+  userAccDisplay.textContent = (communityCumulative[communityCumulative.length - 1] * 100).toFixed(2) + "%";
 
   const w = accCanvas.width;
   const h = accCanvas.height;
@@ -503,15 +501,17 @@ async function drawCombinedAccuracyChart() {
   ctx.lineTo(right, bottom);
   ctx.stroke();
 
+  ctx.fillStyle = "#000";
   ctx.font = "12px Arial";
   ctx.fillText("100%", 12, top + 5);
-  ctx.fillText("50%", 16, top + plotH/2 + 4);
+  ctx.fillText("50%", 16, top + plotH / 2 + 4);
   ctx.fillText("0%", 25, bottom + 4);
 
   const minX = dsRounds[0];
-  const maxX = dsRounds[dsRounds.length - 1];
+  const maxX = dsRounds[dsRounds.length - 1] || minX + 1;
 
   function mapX(roundIndex) {
+    if (maxX === minX) return left;
     return left + ((roundIndex - minX) / (maxX - minX)) * plotW;
   }
   function mapY(v) {
@@ -521,22 +521,20 @@ async function drawCombinedAccuracyChart() {
   ctx.strokeStyle = "#0077ff";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  dsModelAcc.forEach((v, i) => {
+  dsModel.values.forEach((v, i) => {
     const x = mapX(dsRounds[i]);
     const y = mapY(v);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
   ctx.strokeStyle = "#ff8800";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  dsCommunity.forEach((v, i) => {
+  dsCommunity.values.forEach((v, i) => {
     const x = mapX(dsRounds[i]);
     const y = mapY(v);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
@@ -546,27 +544,28 @@ async function drawCombinedAccuracyChart() {
   for (let i = 0; i < nTicks; i++) {
     const r = minX + ((maxX - minX) * i) / (nTicks - 1);
     const x = mapX(r);
-    ctx.fillText("R" + Math.round(r), x - 10, bottom + 14);
+    ctx.fillText("R" + Math.round(r), x - 12, bottom + 14);
   }
 
   ctx.fillStyle = "#ff8800";
   ctx.fillRect(right - 140, top + 4, 12, 8);
   ctx.fillStyle = "#000";
-  ctx.fillText("Community", right - 120, top + 12);
+  ctx.fillText("Community (cumulative)", right - 120, top + 12);
 
   ctx.fillStyle = "#0077ff";
   ctx.fillRect(right - 60, top + 4, 12, 8);
   ctx.fillStyle = "#000";
-  ctx.fillText("MNIST", right - 40, top + 12);
+  ctx.fillText("MNIST (eval)", right - 40, top + 12);
 }
+
 
 async function submitUserFeedback(label) {
   const lastPrediction = parseInt(document.getElementById('lastPredictionText').textContent);
   if (isNaN(lastPrediction)) return;
 
-  const userAcc = lastPrediction === label ? 1 : 0;
-
   await handleUserFeedback(label);
+
+  const userAcc = lastPrediction === label ? 1 : 0;
 
   let round = 0;
   try {
@@ -588,7 +587,6 @@ async function submitUserFeedback(label) {
     });
     const data = await res.json();
     log(`Feedback submitted to server: ${JSON.stringify(data)}`);
-    //refreshChart();
   } catch (err) {
     console.error("Failed to submit feedback to server:", err);
   }
@@ -604,6 +602,7 @@ let drawCombinedAccuracyChartCached = (function () {
   };
 })();
 
+// schedule main chart refresh every minute, need to sync with round_freq in main
 setInterval(() => drawCombinedAccuracyChartCached(), 60_000);
 
 function refreshChart() {
@@ -617,14 +616,12 @@ window.onload = () => {
     const arr = preprocessCanvasToMNIST();
     localData.push({ x: arr, y: label });
     log(`Saved drawing (${label}). Total ${localData.length}`);
-    //refreshChart();
   };
 
   document.getElementById('uploadBtn').onclick = async () => {
     const f = document.getElementById('uploadImage').files[0];
     if (!f) return log("No file selected");
     await loadImageAs28x28(f, parseInt(document.getElementById('digitLabel').value));
-    //refreshChart();
   };
 
   document.getElementById('drawCanvas').addEventListener('pointerup', renderMNISTPreview);
@@ -658,25 +655,14 @@ window.onload = () => {
 
   document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
-  // document.getElementById('initBtn').onclick = async () => {
-  //   const gm = await fetchGlobalModel();
-  //   log(gm.initialized ? "Global model exists." : "Global model not initialized.");
-  // };
-
   document.getElementById('evalBtn').onclick = async () => {
     const res = await fetch('/evaluate_model');
     log("Eval: " + JSON.stringify(await res.json()));
     refreshChart();
   };
 
-  // document.getElementById('logBtn').onclick = async () => {
-  //   const res = await fetch('/evaluation_log');
-  //   log(JSON.stringify(await res.json(), null, 2));
-  // };
-
   document.getElementById('showModelBtn').onclick = displayGlobalModel;
 
-  //setInterval(refreshChart, 10000);
   refreshChart();
 };
 
@@ -691,7 +677,6 @@ async function displayGlobalModel() {
   }
 
   let out = "";
-
   gm.weights.forEach((w, i) => {
     const min = Math.min(...w).toFixed(4);
     const max = Math.max(...w).toFixed(4);
@@ -701,5 +686,3 @@ async function displayGlobalModel() {
 
   div.innerHTML = out.replace(/\n/g, "<br>");
 }
-
-
