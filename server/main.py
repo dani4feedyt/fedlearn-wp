@@ -235,21 +235,16 @@ def evaluation_worker():
 
 @app.route("/submit_user_feedback", methods=["POST"])
 def submit_user_feedback():
-    global community_feedback
+    global community_feedback, next_round
     data = request.json
     user_accuracy = float(data["user_accuracy"])
-
-    last_round = eval_log[-1]["round"] if eval_log else 0
-
-    community_feedback.setdefault(last_round, []).append(user_accuracy)
-
-    avg_acc = compute_global_community_accuracy()
-
-    if eval_log:
-        eval_log[-1]["accuracy_community"] = avg_acc
-        eval_log[-1]["community_votes"] = community_feedback.get(last_round, [])
-        save_eval_log()
-
+    with lock:
+        target_round = next_round
+        community_feedback.setdefault(target_round, []).append(user_accuracy)
+        avg_acc = compute_global_community_accuracy()
+        if eval_log:
+            eval_log[-1]["accuracy_community"] = avg_acc
+            save_eval_log()
     return jsonify({"status": "updated", "community_accuracy": avg_acc})
 
 
