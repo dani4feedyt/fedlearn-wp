@@ -3,3 +3,4 @@ server/saved_model.keras
 /.venv/
 /.idea/
 __pycache__/
+/old/

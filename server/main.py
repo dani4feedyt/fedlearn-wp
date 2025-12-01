@@ -2,7 +2,7 @@
 import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
-from tensorflow.keras import layers, models
+from tensorflow.keras import models, layers, optimizers, regularizers
 from keras.datasets import mnist
 import threading
 import os
@@ -10,7 +10,6 @@ import time
 from datetime import datetime
 
 # TODO fix the bug that repeatedly sends sample if the save drawing as sample button is pressed
-# TODO fix off by one bug
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIR = os.path.join(BASE_DIR, "..", "client")
@@ -39,14 +38,32 @@ y_test = tf.keras.utils.to_categorical(y_test, 10)
 
 def create_model():
     model = models.Sequential([
-        layers.Dense(64, activation='relu', input_shape=(784,)),
-        layers.Dense(10, activation='softmax')
+        layers.Input(shape=(784,)),
+        layers.Dense(
+            128,
+            activation='relu',
+            kernel_initializer='glorot_uniform',
+            kernel_regularizer=regularizers.l2(1e-4)
+        ),
+        layers.Dense(
+            64,
+            activation='relu',
+            kernel_initializer='glorot_uniform',
+            kernel_regularizer=regularizers.l2(1e-4)
+        ),
+        layers.Dense(
+            10,
+            activation='softmax',
+            kernel_initializer='glorot_uniform'
+        )
     ])
+
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.01),
+        optimizer=optimizers.Adam(learning_rate=0.0015),
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
+
     return model
 
 
@@ -65,12 +82,24 @@ def extract_weights(model):
 
 def load_global_model_if_exists():
     global global_model, global_model_initialized, weight_shapes
+
     if os.path.exists(MODEL_FILE):
-        print("Loading saved global model…")
-        global_model = tf.keras.models.load_model(MODEL_FILE)
+        print("Loading saved global model")
+        global_model = tf.keras.models.load_model(MODEL_FILE, compile=False)
         _, weight_shapes = extract_weights(global_model)
+        global_model.compile(
+            optimizer=optimizers.Adam(learning_rate=0.0015),
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
         global_model_initialized = True
         return True
+
+    print("No saved global model found. Creating a new one")
+    global_model = create_model()
+    weight_shapes = [w.shape for w in global_model.get_weights()]
+    global_model_initialized = True
+    global_model.save(MODEL_FILE, include_optimizer=True)
     return False
 
 
@@ -81,14 +110,24 @@ def save_eval_log():
 
 def load_eval_log():
     global eval_log, community_feedback, round_index
+
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r") as f:
-            eval_log = json.load(f)
-        community_feedback.clear()
-        for entry in eval_log:
-            if "community_votes" in entry:
-                community_feedback[entry["round"]] = entry["community_votes"]
-        round_index = eval_log[-1]["round"] if eval_log else 0
+            try:
+                eval_log = json.load(f)
+            except json.JSONDecodeError:
+                print("Warning: Log file is corrupted. Starting with empty log.")
+                eval_log = []
+    else:
+        eval_log = []
+        with open(LOG_FILE, "w") as f:
+            json.dump(eval_log, f, indent=2)
+        print(f"Created new evaluation log at {LOG_FILE}")
+    community_feedback.clear()
+    for entry in eval_log:
+        if "community_votes" in entry:
+            community_feedback[entry["round"]] = entry["community_votes"]
+    round_index = eval_log[-1]["round"] if eval_log else 0
 
 
 load_global_model_if_exists()
@@ -110,63 +149,88 @@ def get_model():
 
 @app.route("/submit_update", methods=["POST"])
 def submit_update():
-    global pending_updates, weight_shapes, global_model_initialized
+    global pending_updates, weight_shapes, global_model_initialized, global_model, next_round
 
-    data = request.json
-    client_weights = data["weights"]
-    client_shapes = data["shapes"]
-    client_size = data["client_size"]
+    data = request.json or {}
+
+    client_deltas = data.get("deltas")
+    client_shapes = data.get("shapes")
+    client_size = data.get("client_size", 1)
+    is_delta = bool(data.get("is_delta", False))
+
+    if not client_shapes or not isinstance(client_shapes, list):
+        return jsonify({"status": "error", "message": "Missing or invalid shapes"}), 400
+
+    if client_deltas is None or not isinstance(client_deltas, list):
+        return jsonify({"status": "error", "message": "Missing or invalid deltas"}), 400
 
     with lock:
-
         if not global_model_initialized:
+            print("Global model not initialized, using incoming update to initialize.")
             global_model = create_model()
             weight_shapes = client_shapes
+            try:
+                set_model_weights(global_model, client_deltas, weight_shapes)
+            except Exception as e:
+                print("Error setting initial model weights:", e)
+                return jsonify({"status": "error", "message": str(e)}), 500
             global_model_initialized = True
             global_model.save(MODEL_FILE)
+            is_delta = False
 
         pending_updates.append({
-            "weights": client_weights,
+            "deltas": client_deltas,
             "shapes": client_shapes,
-            "client_size": client_size
+            "client_size": client_size,
+            "is_delta": is_delta
         })
 
-        global next_round
-        print(f"Received update for round {next_round}. "
-              f"Updates waiting: {len(pending_updates)}")
+        print(f"Received update for round {next_round} "
+              f"Updates waiting: {len(pending_updates)} (most recent is_delta={is_delta})")
 
     return jsonify({"status": "stored", "pending_updates": len(pending_updates)})
 
 
 def perform_fedavg_round():
-    global pending_updates, global_model, weight_shapes, round_index
+    global pending_updates, global_model, weight_shapes
 
     if not pending_updates:
         print("No updates to aggregate this round.")
-        return None
+        return False
 
-    print(f"Aggregating {len(pending_updates)} updates (FedAvg)…")
+    print(f"Aggregating {len(pending_updates)} delta updates")
 
-    accum = [np.zeros(tuple(shape), dtype=np.float32) for shape in weight_shapes]
+    current_weights = global_model.get_weights()
+    accum = [np.zeros_like(w) for w in current_weights]
     total_size = 0
+    valid_updates = []
 
     for update in pending_updates:
-        weights = [np.array(w, dtype=np.float32).reshape(tuple(shape))
-                   for w, shape in zip(update["weights"], update["shapes"])]
+        if not update.get("is_delta", False):
+            print("Skipping invalid update.")
+            continue
+        valid_updates.append(update)
+        deltas = [np.array(w, dtype=np.float32).reshape(shape)
+                  for w, shape in zip(update["deltas"], update["shapes"])]
         size = update["client_size"]
-
-        for i in range(len(weights)):
-            accum[i] += weights[i] * size
+        for i in range(len(deltas)):
+            accum[i] += deltas[i] * size
         total_size += size
 
-    averaged = [wsum / total_size for wsum in accum]
+    if not valid_updates:
+        print("No valid updates to aggregate this round.")
+        return False
 
-    global_model.set_weights(averaged)
-    global_model.save(MODEL_FILE)
+    avg_delta = [a / total_size for a in accum]
+    new_weights = [cw + d for cw, d in zip(current_weights, avg_delta)]
+    global_model.set_weights(new_weights)
 
-    pending_updates = []
+    global_model.save(MODEL_FILE, include_optimizer=False)
 
-    print("FedAvg applied successfully.")
+    for vu in valid_updates:
+        pending_updates.remove(vu)
+
+    print("FedAvg applied successfully and model saved.")
     return True
 
 
@@ -226,10 +290,14 @@ def evaluation_worker():
         while True:
             with lock:
                 if pending_updates:
-                    print("[AUTO] Finishing FL round…")
-                    perform_fedavg_round()
-                    evaluate_model(round_override=next_round)
-                    next_round += 1
+                    print("Checking pending updates for FL round")
+                    updated = perform_fedavg_round()
+                    if updated:
+                        entry = evaluate_model(round_override=next_round)
+                        print(f"Round {next_round} evaluation: "
+                              f"Model Acc={entry['accuracy_model']:.4f}, "
+                              f"Community Acc={entry['accuracy_community']}")
+                        next_round += 1
             time.sleep(round_freq)
 
 
