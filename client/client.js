@@ -211,15 +211,14 @@ function loadImageAs28x28(file, label) {
 
 function createModel() {
   const m = tf.sequential();
-  m.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [784] }));
+  m.add(tf.layers.dense({ units: 128, activation: 'relu', inputShape: [784] }));
+  m.add(tf.layers.dense({ units: 64, activation: 'relu' }));
   m.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
-
   m.compile({
-    optimizer: tf.train.adam(0.01),
+    optimizer: tf.train.adam(0.0015),
     loss: 'categoricalCrossentropy',
     metrics: ['accuracy']
   });
-
   return m;
 }
 
@@ -246,19 +245,6 @@ async function loadWeightsIntoModel(model, gm) {
 async function fetchGlobalModel() {
   return await fetch('/get_model').then(r => r.json());
 }
-
-async function submitUpdate(serialized, size) {
-  return await fetch('/submit_update', {
-    method: 'POST',
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      weights: serialized.weights,
-      shapes: serialized.shapes,
-      client_size: size
-    })
-  }).then(r => r.json());
-}
-
 
 async function predictDrawnDigit() {
   try {
@@ -348,28 +334,34 @@ async function predictDrawnDigit() {
   }
 }
 
+async function submitDeltaUpdate(deltaObj, size) {
+  return await fetch('/submit_update', {
+    method: 'POST',
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      deltas: deltaObj.deltas,
+      shapes: deltaObj.shapes,
+      client_size: size,
+      is_delta: true
+    })
+  }).then(r => r.json());
+}
+
 
 async function localTrainAndSubmit(batchData = null) {
   const dataToTrain = Array.isArray(batchData) ? batchData :
                       Array.isArray(localData) ? localData : [];
 
-  if (!Array.isArray(dataToTrain)) {
-    log("Training aborted: dataToTrain is not an array.");
-    console.warn("dataToTrain:", dataToTrain);
-    return;
-  }
-
-  if (dataToTrain.length === 0) {
+  if (!dataToTrain.length) {
     log("No samples to train.");
     return;
   }
-
-  log(`Starting local training on ${dataToTrain.length} sample(s)…`);
+  log(`Starting local training on ${dataToTrain.length} sample(s)`);
 
   const model = createModel();
   const gm = await fetchGlobalModel();
   if (gm.initialized) await loadWeightsIntoModel(model, gm);
-
+  const before = await serializeModelWeights(model);
   const xs = tf.tensor2d(dataToTrain.map(s => s.x), [dataToTrain.length, 784]);
   const ys = tf.oneHot(tf.tensor1d(dataToTrain.map(s => s.y), 'int32'), 10);
 
@@ -385,15 +377,18 @@ async function localTrainAndSubmit(batchData = null) {
     }
   });
 
-  const serialized = await serializeModelWeights(model);
-  await submitUpdate(serialized, dataToTrain.length);
-
-  log("Submitted federated update to server.");
+  const after = await serializeModelWeights(model);
+  const deltas = after.weights.map((arr, i) =>
+    arr.map((v, j) => v - before.weights[i][j])
+  );
+  await submitDeltaUpdate({ shapes: after.shapes, deltas }, dataToTrain.length);
+  log("Submitted update to server.");
 
   xs.dispose();
   ys.dispose();
   model.dispose();
 }
+
 
 
 async function handleUserFeedback(label) {
@@ -456,7 +451,7 @@ async function drawCombinedAccuracyChart() {
     accCtx.clearRect(0, 0, accCanvas.width, accCanvas.height);
     accCtx.fillStyle = "#333";
     accCtx.font = "14px Arial";
-    accCtx.fillText("No evaluation / feedback data yet.", 20, 40);
+    accCtx.fillText("No evaluation data yet.", 20, 40);
     return;
   }
 
@@ -547,12 +542,12 @@ async function drawCombinedAccuracyChart() {
   ctx.fillStyle = "#ff8800";
   ctx.fillRect(right - 140, top + 4, 12, 8);
   ctx.fillStyle = "#000";
-  ctx.fillText("Community (cumulative)", right - 120, top + 12);
+  ctx.fillText("Community", right - 120, top + 12);
 
   ctx.fillStyle = "#0077ff";
   ctx.fillRect(right - 60, top + 4, 12, 8);
   ctx.fillStyle = "#000";
-  ctx.fillText("MNIST (eval)", right - 40, top + 12);
+  ctx.fillText("MNIST", right - 40, top + 12);
 }
 
 

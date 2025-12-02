@@ -1,0 +1,34 @@
+﻿name: Deploy Federated Learning App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Mark repo as safe directory
+        run: git config --global --add safe.directory /mnt/Pull1/Scripts/federated_learning
+
+      - name: Reset local repo
+        run: |
+          cd /mnt/Pull1/Scripts/federated_learning
+          git reset --hard
+          git clean -fd
+
+      - name: Pull latest code
+        run: |
+          cd /mnt/Pull1/Scripts/federated_learning
+          git pull origin main
+
+      - name: Rebuild and restart backend/frontend
+        run: |
+          cd /mnt/Pull1/Scripts/federated_learning
+          sudo docker compose down
+          sudo docker compose up -d --build
