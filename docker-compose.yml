@@ -3,8 +3,8 @@ version: "3.9"
 services:
   backend:
     build:
-      context: ./server
-      dockerfile: ../Dockerfile.backend
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: fedlearn-backend
     restart: unless-stopped
     ports:
@@ -15,8 +15,8 @@ services:
 
   frontend:
     build:
-      context: ./client
-      dockerfile: ../Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
     container_name: fedlearn-frontend
     restart: unless-stopped
     ports:
