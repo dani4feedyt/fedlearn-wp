@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 
 # TODO fix the bug that repeatedly sends sample if the save drawing as sample button is pressed
-# TODO check server pull to truenas
+# TODO check server no-pull to truenas
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
