@@ -13,8 +13,12 @@ from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIR = os.path.join(BASE_DIR, "..", "client")
-MODEL_FILE = os.path.join(BASE_DIR, "saved_model.keras")
-LOG_FILE = os.path.join(BASE_DIR, "evaluation_log.json")
+
+DATA_DIR = os.path.join(BASE_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+MODEL_FILE = os.path.join(DATA_DIR, "saved_model.keras")
+LOG_FILE = os.path.join(DATA_DIR, "evaluation_log.json")
 
 
 global_model = None
