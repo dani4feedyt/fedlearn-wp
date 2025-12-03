@@ -144,7 +144,7 @@ next_round = eval_log[-1]["round"] + 1 if eval_log else 1
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
 
 
-@app.route("/get_model")
+@app.route("/api/get_model")
 def get_model():
     if not global_model_initialized:
         return jsonify({"initialized": False})
@@ -153,7 +153,7 @@ def get_model():
     return jsonify({"initialized": True, "weights": arrays, "shapes": shapes})
 
 
-@app.route("/submit_update", methods=["POST"])
+@app.route("/api/submit_update", methods=["POST"])
 def submit_update():
     global pending_updates, weight_shapes, global_model_initialized, global_model, next_round
 
@@ -240,7 +240,7 @@ def perform_fedavg_round():
     return True
 
 
-@app.route("/finish_round")
+@app.route("/api/finish_round")
 def finish_round():
     with lock:
         if not pending_updates:
@@ -307,7 +307,7 @@ def evaluation_worker():
             time.sleep(round_freq)
 
 
-@app.route("/submit_user_feedback", methods=["POST"])
+@app.route("/api/submit_user_feedback", methods=["POST"])
 def submit_user_feedback():
     global community_feedback, next_round
     data = request.json
@@ -322,7 +322,7 @@ def submit_user_feedback():
     return jsonify({"status": "updated", "community_accuracy": avg_acc})
 
 
-@app.route("/evaluation_log")
+@app.route("/api/evaluation_log")
 def evaluation_log_route():
     return jsonify(eval_log)
 
