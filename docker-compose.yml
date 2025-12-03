@@ -12,6 +12,8 @@ services:
     volumes:
       - ./server:/app
       - fedlearn_data:/app/data
+    networks:
+      - default
 
   frontend:
     build:
@@ -21,6 +23,13 @@ services:
     restart: unless-stopped
     ports:
       - "8080:80"
+    networks:
+      - default
+      - proxy
 
 volumes:
   fedlearn_data:
+
+networks:
+  proxy:
+    external: true
