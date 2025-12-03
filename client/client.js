@@ -652,7 +652,7 @@ window.onload = () => {
   document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
   document.getElementById('evalBtn').onclick = async () => {
-    const res = await fetch('/api//evaluate_model');
+    const res = await fetch('/api/evaluate_model');
     log("Eval: " + JSON.stringify(await res.json()));
     refreshChart();
   };
