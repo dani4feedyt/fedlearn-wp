@@ -14,6 +14,7 @@ services:
       - fedlearn_data:/app/data
     networks:
       - default
+      - proxy
 
   frontend:
     build:
