@@ -243,7 +243,7 @@ async function loadWeightsIntoModel(model, gm) {
 
 
 async function fetchGlobalModel() {
-  return await fetch('/get_model').then(r => r.json());
+  return await fetch('/api/get_model').then(r => r.json());
 }
 
 async function predictDrawnDigit() {
@@ -335,7 +335,7 @@ async function predictDrawnDigit() {
 }
 
 async function submitDeltaUpdate(deltaObj, size) {
-  return await fetch('/submit_update', {
+  return await fetch('/api/submit_update', {
     method: 'POST',
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -414,7 +414,7 @@ const mnistAccDisplay = document.getElementById("mnistAccDisplay");
 
 async function fetchEvaluationLogForChart() {
   try {
-    const res = await fetch("/evaluation_log?t=" + Date.now());
+    const res = await fetch("/api/evaluation_log?t=" + Date.now());
     if (!res.ok) return [];
     return await res.json();
   } catch (e) {
@@ -561,7 +561,7 @@ async function sendFeedbackToServer(label) {
 
   let round = 0;
   try {
-    const logRes = await fetch("/evaluation_log?t=" + Date.now());
+    const logRes = await fetch("/api/evaluation_log?t=" + Date.now());
     const logData = await logRes.json();
     if (logData.length > 0) round = logData[logData.length - 1].round;
   } catch (err) {
@@ -569,7 +569,7 @@ async function sendFeedbackToServer(label) {
   }
 
   try {
-    const res = await fetch("/submit_user_feedback", {
+    const res = await fetch("/api/submit_user_feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -652,7 +652,7 @@ window.onload = () => {
   document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
   document.getElementById('evalBtn').onclick = async () => {
-    const res = await fetch('/evaluate_model');
+    const res = await fetch('/api//evaluate_model');
     log("Eval: " + JSON.stringify(await res.json()));
     refreshChart();
   };
