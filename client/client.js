@@ -2,9 +2,9 @@
 const tf = window.tf;
 
 const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
-const socket = io("https://fedlearn.sweng.qzz.io/socket.io", {
-    transports: ["websocket"],
-    upgrade: true
+const socket = io("/socket.io", {
+    path: "/socket.io",
+    transports: ["websocket"]
 });
 socket.on("round_countdown", data => {
   const rn = document.getElementById("roundNumber");
@@ -19,7 +19,7 @@ socket.on("round_countdown", data => {
   }
 });
 
-socket.on("round_status", data => {
+socket.on("round_status_report", data => {
   console.log("Server status:", data.status);
   const cd = document.getElementById("countdown");
   if (cd && data.status === "updating") cd.textContent = "Updating…";
