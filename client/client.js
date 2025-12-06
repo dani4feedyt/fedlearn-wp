@@ -1,8 +1,8 @@
 ﻿/** @type {import('@tensorflow/tfjs')} */
 const tf = window.tf;
-const socket = io("/api");
-const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
 
+const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
+const socket = io(baseroute + "/api");
 socket.on("round_countdown", data => {
   const rn = document.getElementById("roundNumber");
   const cd = document.getElementById("countdown");
