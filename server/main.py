@@ -155,7 +155,7 @@ load_eval_log()
 next_round = eval_log[-1]["round"] + 1 if eval_log else 1
 
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent", path="/socket.io", logger=True, engineio_logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent", path="/socket.io")
 
 
 @app.route("/api/get_model")
@@ -386,7 +386,6 @@ def evaluation_worker():
                 next_round += 1
 
             socketio.sleep(0.1)
-
 
 
 @app.route("/api/submit_user_feedback", methods=["POST"])

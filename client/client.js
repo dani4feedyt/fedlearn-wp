@@ -2,7 +2,7 @@
 const tf = window.tf;
 
 const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
-const socket = io("https://fedlearn.sweng.qzz.io", {
+const socket = io(baseroute, {
   path: "/api/socket.io",
   transports: ["websocket"]
 });
