@@ -1,6 +1,6 @@
 ﻿/** @type {import('@tensorflow/tfjs')} */
 const tf = window.tf;
-const socket = io();
+const socket = io("/api");
 const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
 
 socket.on("round_countdown", data => {
