@@ -2,7 +2,7 @@
 const tf = window.tf;
 
 const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
-const socket = io(baseroute + "/api");
+const socket = io(baseroute + "/api", { transports: ["websocket"] });
 socket.on("round_countdown", data => {
   const rn = document.getElementById("roundNumber");
   const cd = document.getElementById("countdown");
