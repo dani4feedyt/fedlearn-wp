@@ -417,4 +417,4 @@ def serve_index():
 if __name__ == "__main__":
     threading.Thread(target=evaluation_worker, daemon=True).start()
     print("Fed_avg server started")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, async_mode="gevent")
