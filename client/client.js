@@ -7,9 +7,9 @@ const socket = io(baseroute, {
   transports: ["websocket"]
 });
 
-socket.onAny((event, ...args) => {
-    console.log("Socket event:", event, args);
-});
+// socket.onAny((event, ...args) => {
+//     console.log("Socket event:", event, args);
+// });
 
 socket.on("round_countdown", data => {
   const rn = document.getElementById("roundNumber");
