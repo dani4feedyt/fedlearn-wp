@@ -1,6 +1,8 @@
-﻿import json
+﻿
+from gevent import monkey
+monkey.patch_all()
+import json
 import numpy as np
-
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
 from tensorflow.keras import models, layers, optimizers, regularizers
@@ -9,9 +11,6 @@ import threading
 import os
 import time
 from datetime import datetime
-from gevent import monkey
-monkey.patch_all()
-
 from flask_socketio import SocketIO
 
 # TODO fix the bug that repeatedly sends sample if the save drawing as sample button is pressed
