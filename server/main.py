@@ -155,7 +155,7 @@ load_eval_log()
 next_round = eval_log[-1]["round"] + 1 if eval_log else 1
 
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="gevent")
 
 
 @app.route("/api/get_model")
@@ -417,4 +417,4 @@ def serve_index():
 if __name__ == "__main__":
     threading.Thread(target=evaluation_worker, daemon=True).start()
     print("Fed_avg server started")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, async_mode="gevent")
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
