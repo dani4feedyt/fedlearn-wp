@@ -1,5 +1,6 @@
 ﻿import json
 import numpy as np
+
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
 from tensorflow.keras import models, layers, optimizers, regularizers
@@ -8,6 +9,10 @@ import threading
 import os
 import time
 from datetime import datetime
+from gevent import monkey
+monkey.patch_all()
+
+from flask_socketio import SocketIO
 
 # TODO fix the bug that repeatedly sends sample if the save drawing as sample button is pressed
 # TODO check server no-pull to truenas
@@ -35,6 +40,7 @@ round_freq = 60
 eval_log = []
 community_feedback = {}
 
+previous_round_status = "No previous rounds yet, or model was initialized one round ago."
 
 (_, _), (x_test, y_test) = mnist.load_data()
 x_test = x_test.astype("float32") / 255.0
@@ -77,6 +83,14 @@ def set_model_weights(model, weights_arrays, shapes):
     tensors = [np.array(arr, dtype=np.float32).reshape(shape)
                for arr, shape in zip(weights_arrays, shapes)]
     model.set_weights(tensors)
+
+
+def get_model_size_kb():
+    if os.path.exists(MODEL_FILE):
+        size_bytes = os.path.getsize(MODEL_FILE)
+        size_kb = size_bytes / 1024
+        return round(size_kb, 2)
+    return 0.0
 
 
 def extract_weights(model):
@@ -142,6 +156,7 @@ load_eval_log()
 next_round = eval_log[-1]["round"] + 1 if eval_log else 1
 
 app = Flask(__name__, static_folder=CLIENT_DIR, static_url_path="")
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 @app.route("/api/get_model")
@@ -291,20 +306,88 @@ def evaluate_model(round_override=None):
 
 
 def evaluation_worker():
-    global next_round
+    global next_round, previous_round_status
+    print("evaluation_worker triggered")
+
     with app.app_context():
+        model_size = get_model_size_kb()
+        socketio.emit("round_status_report", {
+            "round": next_round,
+            "previous_round_status": previous_round_status or "No previous rounds yet, or model was initialized one round ago.",
+            "model_size_kb": model_size
+        })
+
         while True:
+            for remaining in range(round_freq, 0, -1):
+                socketio.emit("round_countdown", {
+                    "current_round": next_round,
+                    "seconds_left": remaining,
+                    "previous_round_status": previous_round_status,
+                    "model_size_kb": get_model_size_kb()
+                })
+                socketio.sleep(1)
+
             with lock:
-                if pending_updates:
-                    print("Checking pending updates for FL round")
-                    updated = perform_fedavg_round()
-                    if updated:
-                        entry = evaluate_model(round_override=next_round)
-                        print(f"Round {next_round} evaluation: "
-                              f"Model Acc={entry['accuracy_model']:.4f}, "
-                              f"Community Acc={entry['accuracy_community']}")
-                        next_round += 1
-            time.sleep(round_freq)
+                updates_count = len(pending_updates)
+
+                if updates_count == 0:
+                    previous_round_status = "No updates received. Round restarted."
+                    model_size = get_model_size_kb()
+                    print(previous_round_status, model_size)
+
+                    socketio.emit("round_status_report", {
+                        "round": next_round,
+                        "previous_round_status": previous_round_status,
+                        "model_size_kb": model_size
+                    })
+                    continue
+
+                print(f"Checking {updates_count} pending updates for FL round")
+                socketio.emit("round_status", {"status": "updating"})
+
+                updated = perform_fedavg_round()
+                model_size = get_model_size_kb()
+
+                if not updated:
+                    previous_round_status = (
+                        f"{updates_count} updates received, failed to perform FedAvg. Round restarted."
+                    )
+                    print(previous_round_status, model_size)
+
+                    socketio.emit("round_status_report", {
+                        "round": next_round,
+                        "previous_round_status": previous_round_status,
+                        "model_size_kb": model_size
+                    })
+                    continue
+                entry = evaluate_model(round_override=next_round)
+
+                previous_round_status = (
+                    f"{updates_count} updates received, successfully performed FedAvg. Round proceeded."
+                )
+
+                print(
+                    f"Round {next_round} evaluation: "
+                    f"Model Acc={entry['accuracy_model']:.4f}, "
+                    f"Community Acc={entry['accuracy_community']}"
+                )
+
+                model_size = get_model_size_kb()
+
+                socketio.emit("round_finished", {
+                    "round": next_round,
+                    "loss": entry["loss"],
+                    "accuracy_model": entry["accuracy_model"],
+                    "accuracy_community": entry["accuracy_community"],
+                    "previous_round_status": previous_round_status,
+                    "model_size_kb": model_size,
+                    "timestamp": time.time()
+                })
+
+                next_round += 1
+
+            socketio.sleep(0.1)
+
 
 
 @app.route("/api/submit_user_feedback", methods=["POST"])
@@ -335,4 +418,4 @@ def serve_index():
 if __name__ == "__main__":
     threading.Thread(target=evaluation_worker, daemon=True).start()
     print("Fed_avg server started")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)

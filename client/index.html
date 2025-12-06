@@ -2,10 +2,12 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Browser Federated Learning Demo</title>
+  <title>In-Page Federated Learning System</title>
 
   <!-- TensorFlow.js -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
   <style>
     body {
@@ -124,11 +126,18 @@
     <div style="margin-top:8px; font-size:0.9em;">
         Community evaluated accuracy (latest): <span id="userAccDisplay">N/A</span>
         &nbsp;|&nbsp; MNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
+        Model size:<span id="modelSize"> 0 KB</span>
     </div>
 <!--    <button id="initBtn">Check Global Model</button>-->
     <button id="trainBtn">Train Locally & Send Update</button>
     <button id="evalBtn">Evaluate and plot</button>
 <!--    <button id="logBtn">Show Evaluation Log</button>-->
+    <div id="roundInfo">
+      <strong>Round:</strong> <span id="roundNumber">?</span><br>
+      <strong>Next round in:</strong> <span id="countdown">?</span> sec
+      <strong>Previous Round Status:</strong>
+      <span id="prevStatus">No previous rounds yet, or model was initialized one round ago.</span>
+    </div>
   </div>
 
 

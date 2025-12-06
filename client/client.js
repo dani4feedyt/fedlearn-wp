@@ -1,6 +1,47 @@
 ﻿/** @type {import('@tensorflow/tfjs')} */
 const tf = window.tf;
+const socket = io();
 const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
+
+socket.on("round_countdown", data => {
+  const rn = document.getElementById("roundNumber");
+  const cd = document.getElementById("countdown");
+  if (rn) rn.textContent = data.current_round;
+  if (cd) cd.textContent = data.seconds_left;
+  if (data.previous_round_status) {
+    document.getElementById("prevStatus").textContent = data.previous_round_status;
+  }
+  if (data.model_size_kb !== undefined) {
+    document.getElementById("modelSize").textContent = `${data.model_size_kb} KB`;
+  }
+});
+
+socket.on("round_status", data => {
+  console.log("Server status:", data.status);
+  const cd = document.getElementById("countdown");
+  if (cd && data.status === "updating") cd.textContent = "Updating…";
+  if (data.previous_round_status) {
+    document.getElementById("prevStatus").textContent = data.previous_round_status;
+  }
+  if (data.model_size_kb !== undefined) {
+    document.getElementById("modelSize").textContent = `${data.model_size_kb} KB`;
+  }
+});
+
+socket.on("round_finished", data => {
+  console.log("Round finished:", data);
+  const rn = document.getElementById("roundNumber");
+  const cd = document.getElementById("countdown");
+  if (rn) rn.textContent = data.round;
+  if (cd) cd.textContent = "Evaluating…";
+  refreshChart();
+  if (data.previous_round_status) {
+    document.getElementById("prevStatus").textContent = data.previous_round_status;
+  }
+  if (data.model_size_kb !== undefined) {
+    document.getElementById("modelSize").textContent = `${data.model_size_kb} KB`;
+  }
+});
 
 function log(msg) {
   const logDiv = document.getElementById('log');
