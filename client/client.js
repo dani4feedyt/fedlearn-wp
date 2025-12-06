@@ -6,6 +6,11 @@ const socket = io(baseroute, {
     path: "/socket.io",
     transports: ["websocket"]
 });
+
+socket.onAny((event, ...args) => {
+    console.log("Socket event:", event, args);
+});
+
 socket.on("round_countdown", data => {
   const rn = document.getElementById("roundNumber");
   const cd = document.getElementById("countdown");
