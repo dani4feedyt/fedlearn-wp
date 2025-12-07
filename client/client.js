@@ -104,15 +104,12 @@ function clear_canvas() {
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   renderMNISTPreview();
-  const predictionText = document.getElementById('prediction');
-  if (predictionText) predictionText.textContent = "";
-  // const lastPred = document.getElementById('lastPredictionText');
-  // if (lastPred) lastPred.textContent = "";
+  document.getElementById('prediction').textContent = "-:-";
+  document.getElementById('lastPredictionText').textContent = "-:-";
   const barCanvas = document.getElementById('predictionBars');
-  if (barCanvas) {
-    const barCtx = barCanvas.getContext('2d');
-    barCtx.clearRect(0, 0, barCanvas.width, barCanvas.height);
-  }
+  if (barCanvas) barCanvas.remove();
+  document.getElementById('feedbackArea').style.display = 'none';
+  document.getElementById('correctionUI').style.display = 'none';
 }
 
 function preprocessCanvasToMNIST() {
@@ -311,12 +308,9 @@ async function fetchGlobalModel() {
 
 async function predictDrawnDigit() {
   try {
-    console.log("predictDrawnDigit called");
-
     const gm = await fetchGlobalModel();
     if (!gm.initialized) {
-      document.getElementById('prediction').textContent =
-        "Global model not initialized";
+      document.getElementById('prediction').textContent = "Global model not initialized";
       return;
     }
 
@@ -325,7 +319,6 @@ async function predictDrawnDigit() {
 
     const arr = preprocessCanvasToMNIST();
     const xs = tf.tensor2d([arr], [1, 784]);
-
     const pred = model.predict(xs);
     const predData = await pred.data();
 
@@ -342,16 +335,21 @@ async function predictDrawnDigit() {
       `Predicted: ${idx} (${(maxProb * 100).toFixed(2)}%)`;
     document.getElementById('lastPredictionText').textContent = idx;
 
-    const barCanvas = document.getElementById('predictionBars');
+    // Dynamically create the prediction bars canvas
+    let barCanvas = document.getElementById('predictionBars');
+    if (!barCanvas) {
+      barCanvas = document.createElement('canvas');
+      barCanvas.id = 'predictionBars';
+      barCanvas.width = 280;
+      barCanvas.height = 220;
+      document.getElementById('feedbackArea').appendChild(barCanvas);
+    }
+
     const ctx = barCanvas.getContext('2d');
     ctx.clearRect(0, 0, barCanvas.width, barCanvas.height);
 
-    const leftMargin = 40;
-    const rightMargin = 10;
-    const topMargin = 10;
-    const bottomMargin = 10;
+    const leftMargin = 40, rightMargin = 10, topMargin = 10, bottomMargin = 10;
     const n = predData.length;
-
     const availableHeight = Math.max(100, barCanvas.height - topMargin - bottomMargin);
     const slot = availableHeight / n;
     const barHeight = Math.max(8, slot * 0.65);
@@ -363,7 +361,6 @@ async function predictDrawnDigit() {
 
     for (let i = 0; i < n; i++) {
       const y = topMargin + i * (barHeight + gap);
-
       ctx.fillStyle = "#eee";
       ctx.fillRect(leftMargin, y, maxWidth, barHeight);
 
@@ -386,10 +383,12 @@ async function predictDrawnDigit() {
       ctx.fillText(probText, textX, y + barHeight / 2);
     }
 
-
     xs.dispose();
     pred.dispose();
     model.dispose();
+
+    // Show feedback area after prediction
+    document.getElementById('feedbackArea').style.display = 'flex';
 
   } catch (err) {
     console.error("Prediction failed:", err);
