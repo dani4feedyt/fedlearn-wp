@@ -100,11 +100,18 @@ function log(msg) {
 function clear_canvas() {
   const canvas = document.getElementById('drawCanvas');
   const ctx = canvas.getContext('2d');
-
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   renderMNISTPreview();
+  const predictionText = document.getElementById('prediction');
+  if (predictionText) predictionText.textContent = "";
+  // const lastPred = document.getElementById('lastPredictionText');
+  // if (lastPred) lastPred.textContent = "";
+  const barCanvas = document.getElementById('predictionBars');
+  if (barCanvas) {
+    const barCtx = barCanvas.getContext('2d');
+    barCtx.clearRect(0, 0, barCanvas.width, barCanvas.height);
+  }
 }
 
 function preprocessCanvasToMNIST() {
