@@ -104,8 +104,8 @@ function clear_canvas() {
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   renderMNISTPreview();
-  document.getElementById('prediction').textContent = "-:-";
-  document.getElementById('lastPredictionText').textContent = "-:-";
+  document.getElementById('prediction').textContent = "";
+  //document.getElementById('lastPredictionText').textContent = "";
   const barCanvas = document.getElementById('predictionBars');
   if (barCanvas) barCanvas.remove();
   document.getElementById('feedbackArea').style.display = 'none';
