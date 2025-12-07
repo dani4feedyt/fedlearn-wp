@@ -1,7 +1,7 @@
 ﻿/** @type {import('@tensorflow/tfjs')} */
 const tf = window.tf;
 
-const baseroute = "" //change to "" while local https://fedlearn.sweng.qzz.io
+const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
 const socket = io(baseroute, {
   path: "/api/socket.io",
   transports: ["websocket"]
