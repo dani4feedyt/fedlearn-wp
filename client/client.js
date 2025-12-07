@@ -94,13 +94,18 @@ function log(msg) {
     drawing = false;
   });
 
-  document.getElementById('clearBtn').onclick = () => {
-   ctx.fillStyle = 'white';
-   ctx.fillRect(0, 0, canvas.width, canvas.height);
-   renderMNISTPreview();
-  };
+  document.getElementById('clearBtn').onclick = clear_canvas;
 })();
 
+function clear_canvas() {
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  renderMNISTPreview();
+}
 
 function preprocessCanvasToMNIST() {
   const src = document.getElementById("drawCanvas");
@@ -446,6 +451,8 @@ async function handleUserFeedback(label) {
   feedbackQueue.push({ x: arr, y: label });
 
   log(`Feedback sample added (label=${label}). Queue length=${feedbackQueue.length}`);
+
+  clear_canvas();
 
   if (feedbackTimeout) clearTimeout(feedbackTimeout);
   feedbackTimeout = setTimeout(async () => {
