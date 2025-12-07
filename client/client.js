@@ -1,7 +1,7 @@
 ﻿/** @type {import('@tensorflow/tfjs')} */
 const tf = window.tf;
 
-const baseroute = "https://fedlearn.sweng.qzz.io" //change to "" while local
+const baseroute = "" //change to "" while local https://fedlearn.sweng.qzz.io
 const socket = io(baseroute, {
   path: "/api/socket.io",
   transports: ["websocket"]
@@ -95,9 +95,9 @@ function log(msg) {
   });
 
   document.getElementById('clearBtn').onclick = () => {
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    renderMNISTPreview();
+   ctx.fillStyle = 'white';
+   ctx.fillRect(0, 0, canvas.width, canvas.height);
+   renderMNISTPreview();
   };
 })();
 
@@ -658,18 +658,18 @@ setInterval(refreshChart, 60_000);
 
 
 window.onload = () => {
-  document.getElementById('saveDrawingBtn').onclick = () => {
-    const label = parseInt(document.getElementById('digitLabel').value);
-    const arr = preprocessCanvasToMNIST();
-    localData.push({ x: arr, y: label });
-    log(`Saved drawing (${label}). Total ${localData.length}`);
-  };
+  //document.getElementById('saveDrawingBtn').onclick = () => {
+  //  const label = parseInt(document.getElementById('digitLabel').value);
+  //  const arr = preprocessCanvasToMNIST();
+  //  localData.push({ x: arr, y: label });
+  //  log(`Saved drawing (${label}). Total ${localData.length}`);
+  //};
 
-  document.getElementById('uploadBtn').onclick = async () => {
-    const f = document.getElementById('uploadImage').files[0];
-    if (!f) return log("No file selected");
-    await loadImageAs28x28(f, parseInt(document.getElementById('digitLabel').value));
-  };
+  //document.getElementById('uploadBtn').onclick = async () => {
+  //  const f = document.getElementById('uploadImage').files[0];
+  //  if (!f) return log("No file selected");
+  //  await loadImageAs28x28(f, parseInt(document.getElementById('digitLabel').value));
+  //};
 
   document.getElementById('drawCanvas').addEventListener('pointerup', renderMNISTPreview);
 
@@ -699,15 +699,15 @@ window.onload = () => {
       await predictDrawnDigit();
     };
 
-  document.getElementById('trainBtn').onclick = localTrainAndSubmit;
+  //document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
-  document.getElementById('evalBtn').onclick = async () => {
-    const res = await fetch(`${baseroute}/api/evaluate_model`);
-    log("Eval: " + JSON.stringify(await res.json()));
-    refreshChart();
-  };
+  //document.getElementById('evalBtn').onclick = async () => {
+  //  const res = await fetch(`${baseroute}/api/evaluate_model`);
+  //  log("Eval: " + JSON.stringify(await res.json()));
+  //  refreshChart();
+  //};
 
-  document.getElementById('showModelBtn').onclick = displayGlobalModel;
+  //document.getElementById('showModelBtn').onclick = displayGlobalModel;
 
   refreshChart();
 };

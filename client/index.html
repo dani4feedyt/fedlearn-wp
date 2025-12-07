@@ -23,24 +23,24 @@
 
     #mnistPreview {
       border: 2px solid #333;
-      margin-top: 10px;
-    }
-
-    #log {
-      width: 600px;
-      height: 200px;
-      border: 1px solid #444;
-      padding: 10px;
-      white-space: pre;
-      overflow-y: scroll;
-      background: #fafafa;
+      /*margin-top: 10px;*/
     }
 
     .section {
-      margin-top: 25px;
+      margin-top: 50px;
       padding: 15px;
       border: 1px solid #ccc;
       background: #f5f5f5;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .centered-flex {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 32px;
     }
 
     button {
@@ -53,85 +53,66 @@
 
 <body>
 
-  <h2>In-Page Federated Learning</h2>
-  <div id="status"><b>Status:</b> idle</div>
+  <h2 class="centered-flex">In-Page Federated Learning</h2>
+  <div id="status" class="centered-flex"><b>Status:</b> idle</div>
 
   <div class="section">
     <h3>Draw a Digit (0–9)</h3>
+    <div style="display:flex; gap:32px; align-items:flex-start;">
 
-    <canvas id="drawCanvas" width="280" height="280"></canvas>
-    <canvas id="mnistPreview" width="280" height="280"></canvas>
-
-    <br>
-
-    <label>
-      Label:
-      <input type="number" id="digitLabel" min="0" max="9" value="0" style="width:50px;">
-    </label>
-    <br><br>
-
-    <button id="saveDrawingBtn">Save Drawing as Sample</button>
-    <button id="clearBtn">Clear</button>
-
-    <label for="uploadImage" class="btn">Select Image</label>
-    <input type="file" id="uploadImage" style="display:none;" accept="image/*">
-    <button id="uploadBtn">Upload image as Sample</button>
-
-    <p style="font-size: 0.9em; color:#333;">
-      The provided drawing or image will be resized to 28×28 and converted to grayscale.
-    </p>
-  </div>
-
-<div class="section">
-  <div id="prediction_body" style="margin-top:12px; display:flex; align-items:flex-start; gap:24px;">
-    <div style="display:flex; flex-direction:column; gap:12px;">
-      <h3>Model Prediction</h3>
-
-      <button id="predictBtn" style="align-self:flex-start;">Predict Drawn Digit</button>
-
-      <div id="prediction" style="font-size:1.5em; font-weight:bold;">-:-</div>
-
-      <div id="feedbackArea" style="display:flex; flex-direction:column; gap:6px;">
-        <div>
-          <strong>Last prediction:</strong>
-          <span id="lastPredictionText">-:-</span>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; flex-direction:row; gap:12px;">
+          <canvas id="drawCanvas" width="280" height="280"></canvas>
+          <canvas id="mnistPreview" width="280" height="280"></canvas>
         </div>
+          <div style="display:flex; flex-direction:row; gap:12px;">
+            <button id="predictBtn" style="width:280px; height:40px;">Predict Drawn Digit</button>
+            <button id="clearBtn" style="width:280px; height:40px;">Clear</button>
+          </div>
+      </div>
 
-        <div style="display:flex; align-items:center; gap:8px;">
-          <label>Is predicted number correct?</label>
-          <button id="feedbackYesBtn">Yes</button>
-          <button id="feedbackNoBtn">No</button>
+      <div id="prediction_body" style="display:flex; flex-direction:column; gap:18px;">
 
-          <span id="correctionUI" style="display:none; margin-left:10px; align-items:center;">
+        <div id="prediction" style="font-size:1.6em; font-weight:bold;">-:-</div>
+
+        <div id="feedbackArea" style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <strong>Last prediction:</strong>
+            <span id="lastPredictionText">-:-</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label>Is predicted number correct?</label>
+            <button id="feedbackYesBtn">Yes</button>
+            <button id="feedbackNoBtn">No</button>
+          </div>
+
+          <span id="correctionUI" style="display:none; align-items:center; gap:8px;">
             Correct label:
-            <input id="correctLabelInput" type="number" min="0" max="9" style="width:60px; margin-left:4px;">
+            <input id="correctLabelInput" type="number" min="0" max="9" style="width:60px;">
             <button id="submitCorrectionBtn">Submit</button>
           </span>
+
+          <canvas id="predictionBars" width="280" height="220"></canvas>
         </div>
+
       </div>
     </div>
-    <canvas id="predictionBars" width="280" height="220"></canvas>
   </div>
-</div>
-
 
   <div class="section">
     <h3>Model Accuracy between rounds</h3>
     <div id="lastUpdated" style="margin-top:6px; font-size:0.85em; color:#555;">
-      Last updated: never
+        Last updated: never
     </div>
 
     <canvas id="accuracyChart" width="700" height="280" style="border:1px solid #333;"></canvas>
 
     <div style="margin-top:8px; font-size:0.9em;">
-        Community evaluated accuracy (latest): <span id="userAccDisplay">N/A</span>
-        &nbsp;|&nbsp; MNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
-        Model size:<span id="modelSize"> 0 KB</span>
+      Community evaluated accuracy (latest): <span id="userAccDisplay">N/A</span>
+      &nbsp;|&nbsp; MNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
+      Model size:<span id="modelSize"> 0 KB</span>
     </div>
-<!--    <button id="initBtn">Check Global Model</button>-->
-    <button id="trainBtn">Train Locally & Send Update</button>
-    <button id="evalBtn">Evaluate and plot</button>
-<!--    <button id="logBtn">Show Evaluation Log</button>-->
     <div id="roundInfo">
       <strong>Round:</strong> <span id="roundNumber">?</span><br>
       <strong>Next round in:</strong> <span id="countdown">?</span> sec
@@ -140,15 +121,6 @@
     </div>
   </div>
 
-
-  <div class="section">
-    <h3>Global Model State</h3>
-    <button id="showModelBtn">Show/Refresh Global Model</button>
-    <pre id="modelState" style="height:150px; overflow-y:auto; background:#fff; border:1px solid #ccc; padding:10px;"></pre>
-    <h3>Log Output</h3>
-    <div id="log"></div>
-  </div>
-
-  <script src="client.js?v=202512067"></script> <!--Change v= to immediately enforce new non-cached js -->
-</body>
+  <script src="client.js?v=202512068"></script> <!--Change v= to immediately enforce new non-cached js -->
+  </body>
 </html>
