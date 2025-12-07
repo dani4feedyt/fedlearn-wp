@@ -52,9 +52,10 @@ socket.on("round_finished", data => {
 });
 
 function log(msg) {
-  const logDiv = document.getElementById('log');
-  logDiv.textContent =
-    `[${new Date().toLocaleTimeString()}] ` + msg + "\n" + logDiv.textContent;
+  console.log(`[${new Date().toLocaleTimeString()}] ` + msg + "\n");
+  // const logDiv = document.getElementById('log');
+  // logDiv.textContent =
+  //   `[${new Date().toLocaleTimeString()}] ` + msg + "\n" + logDiv.textContent;
 }
 
 
