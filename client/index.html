@@ -57,7 +57,7 @@
   <div id="status" class="centered-flex"><b>Status:</b> idle</div>
 
   <div class="section">
-    <h3>Draw a Digit (0–9)</h3>
+    <h3>Draw a Character (0–9, A–Z, a–z)</h3>
     <div style="display:flex; gap:32px; align-items:flex-start;">
 
       <div style="display:flex; flex-direction:column; gap:12px;">
@@ -89,7 +89,7 @@
 
           <span id="correctionUI" style="display:none; align-items:center; gap:8px;">
             Correct label:
-            <input id="correctLabelInput" type="number" min="0" max="9" style="width:60px;">
+            <input id="correctLabelInput" type="text" maxlength="1" style="width:60px;">
             <button id="submitCorrectionBtn">Submit</button>
           </span>
         </div>
@@ -119,6 +119,6 @@
     </div>
   </div>
 
-  <script src="client.js?v=202512075"></script> <!--Change v= to immediately enforce new non-cached js -->
+  <script src="client.js?v=2025120777"></script> <!--Change v= to immediately enforce new non-cached js -->
   </body>
 </html>
