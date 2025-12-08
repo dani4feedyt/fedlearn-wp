@@ -31,4 +31,9 @@ jobs:
         run: |
           cd /mnt/Pull1/Scripts/federated_learning
           sudo docker compose down
-          sudo docker compose up -d --build
+          sudo docker compose up -d --build frontend
+          sudo docker run --gpus all -d \
+            -p 5000:5000 \
+            -v /mnt/Pull1/Scripts/federated_learning/server/data:/app/data \
+            --name fedlearn-backend \
+            federated_learning-backend
