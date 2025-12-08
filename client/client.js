@@ -270,10 +270,11 @@ function loadImageAs28x28(file, label) {
 
 
 function createModel() {
+  const NUM_CLASSES = 62; // digits + uppercase + lowercase
   const m = tf.sequential();
   m.add(tf.layers.dense({ units: 128, activation: 'relu', inputShape: [784] }));
   m.add(tf.layers.dense({ units: 64, activation: 'relu' }));
-  m.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+  m.add(tf.layers.dense({ units: NUM_CLASSES, activation: 'softmax' }));
   m.compile({
     optimizer: tf.train.adam(0.0015),
     loss: 'categoricalCrossentropy',
@@ -301,6 +302,21 @@ async function loadWeightsIntoModel(model, gm) {
   tensors.forEach(t => t.dispose());
 }
 
+
+ function getCharMap() {
+   const map = {};
+   for (let i = 0; i < 10; i++) map[i] = i.toString();// digits
+   for (let i = 0; i < 26; i++) map[i + 10] = String.fromCharCode(65 + i); // uppercase
+   for (let i = 0; i < 26; i++) map[i + 36] = String.fromCharCode(97 + i); // lowercase
+   return map;
+ }
+
+ function charToIndex(char) {
+   if (/[0-9]/.test(char)) return parseInt(char);
+   if (/[A-Z]/.test(char)) return char.charCodeAt(0) - 65 + 10;
+   if (/[a-z]/.test(char)) return char.charCodeAt(0) - 97 + 36;
+   return null;
+ }
 
 async function fetchGlobalModel() {
   return await fetch(`${baseroute}/api/get_model`).then(r => r.json());
@@ -331,11 +347,12 @@ async function predictDrawnDigit() {
       }
     }
 
+    const charMap = getCharMap();
+    const predChar = charMap[idx] || idx;
     document.getElementById('prediction').textContent =
-      `Predicted: ${idx} (${(maxProb * 100).toFixed(2)}%)`;
-    document.getElementById('lastPredictionText').textContent = idx;
+      `Predicted: ${predChar} (${(maxProb * 100).toFixed(2)}%)`;
+    document.getElementById('lastPredictionText').textContent = predChar;
 
-    // Dynamically create the prediction bars canvas
     let barCanvas = document.getElementById('predictionBars');
     if (!barCanvas) {
       barCanvas = document.createElement('canvas');
@@ -349,31 +366,44 @@ async function predictDrawnDigit() {
     ctx.clearRect(0, 0, barCanvas.width, barCanvas.height);
 
     const leftMargin = 40, rightMargin = 10, topMargin = 10, bottomMargin = 10;
-    const n = predData.length;
+    const topN = 10;
+    const sortedIndices = Array.from(predData.keys())
+        .sort((a, b) => predData[b] - predData[a])
+        .slice(0, topN);
+    const remainingIndices = Array.from(predData.keys()).filter(i => !sortedIndices.includes(i));
+    const othersMedian = remainingIndices.length > 0
+        ? remainingIndices.map(i => predData[i]).sort((a,b) => a-b)[Math.floor(remainingIndices.length/2)]
+        : 0;
+
+    const topIndicesWithOthers = [...sortedIndices, -1]; // Others
+    const n = topIndicesWithOthers.length;
+    const maxWidth = barCanvas.width - leftMargin - rightMargin;
     const availableHeight = Math.max(100, barCanvas.height - topMargin - bottomMargin);
     const slot = availableHeight / n;
     const barHeight = Math.max(8, slot * 0.65);
     const gap = Math.max(2, slot * 0.35);
-    const maxWidth = barCanvas.width - leftMargin - rightMargin;
 
     ctx.font = "12px Arial";
     ctx.textBaseline = "middle";
 
     for (let i = 0; i < n; i++) {
+      const idxTop = topIndicesWithOthers[i];
+      const prob = idxTop === -1 ? othersMedian : predData[idxTop];
+      const label = idxTop === -1 ? "Other" : charMap[idxTop] ?? idxTop;
       const y = topMargin + i * (barHeight + gap);
       ctx.fillStyle = "#eee";
       ctx.fillRect(leftMargin, y, maxWidth, barHeight);
 
-      const barWidth = predData[i] * maxWidth;
-      ctx.fillStyle = i === idx ? "#ff8800" : "#0077ff";
+      const barWidth = prob * maxWidth;
+      ctx.fillStyle = idxTop === idx ? "#ff8800" : "#0077ff";
       ctx.fillRect(leftMargin, y, barWidth, barHeight);
 
       ctx.fillStyle = "#000";
       ctx.textAlign = "right";
-      ctx.fillText(i, leftMargin - 8, y + barHeight / 2);
+      ctx.fillText(label, leftMargin - 8, y + barHeight / 2);
 
       ctx.textAlign = "left";
-      const probText = (predData[i] * 100).toFixed(1) + "%";
+      const probText = (prob * 100).toFixed(1) + "%";
       const measured = ctx.measureText(probText).width;
       const insideX = leftMargin + Math.max(4, barWidth - measured - 4);
       const outsideX = leftMargin + barWidth + 6;
@@ -387,7 +417,6 @@ async function predictDrawnDigit() {
     pred.dispose();
     model.dispose();
 
-    // Show feedback area after prediction
     document.getElementById('feedbackArea').style.display = 'flex';
 
   } catch (err) {
@@ -424,8 +453,9 @@ async function localTrainAndSubmit(batchData = null) {
   const gm = await fetchGlobalModel();
   if (gm.initialized) await loadWeightsIntoModel(model, gm);
   const before = await serializeModelWeights(model);
+  const NUM_CLASSES = 62;
   const xs = tf.tensor2d(dataToTrain.map(s => s.x), [dataToTrain.length, 784]);
-  const ys = tf.oneHot(tf.tensor1d(dataToTrain.map(s => s.y), 'int32'), 10);
+  const ys = tf.oneHot(tf.tensor1d(dataToTrain.map(s => s.y), 'int32'), NUM_CLASSES);
 
   await model.fit(xs, ys, {
     epochs: 3,
@@ -615,13 +645,19 @@ async function drawCombinedAccuracyChart() {
 }
 
 
-async function sendFeedbackToServer(label) {
-  const lastPrediction = parseInt(document.getElementById('lastPredictionText').textContent);
-  if (isNaN(lastPrediction)) return;
+async function sendFeedbackToServer(userLabel) {
+  const lastPredictionChar = document.getElementById('lastPredictionText').textContent;
+  if (!lastPredictionChar) return;
 
-  await handleUserFeedback(label);
+  const predictedIndex = charToIndex(lastPredictionChar);
+  if (predictedIndex === null) {
+    console.warn("Character not recognized:", lastPredictionChar);
+    return;
+  }
 
-  const userAcc = lastPrediction === label ? 1 : 0;
+  await handleUserFeedback(userLabel);
+
+  const userAcc = predictedIndex === userLabel ? 1 : 0;
 
   let round = 0;
   try {
@@ -636,17 +672,14 @@ async function sendFeedbackToServer(label) {
     const res = await fetch(`${baseroute}/api/submit_user_feedback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        round: round,
-        user_accuracy: userAcc
-      })
+      body: JSON.stringify({ round, user_accuracy: userAcc })
     });
     const data = await res.json();
     log(`Feedback submitted to server: ${JSON.stringify(data)}`);
   } catch (err) {
     console.error("Failed to submit feedback to server:", err);
   }
-}
+};
 
 function updateTimestamp() {
   const now = new Date().toLocaleString();
@@ -688,20 +721,27 @@ window.onload = () => {
   document.getElementById('drawCanvas').addEventListener('pointerup', renderMNISTPreview);
 
   document.getElementById('feedbackYesBtn').onclick = async () => {
-    const lastPrediction = parseInt(document.getElementById('lastPredictionText').textContent);
-    if (!isNaN(lastPrediction)) await sendFeedbackToServer(lastPrediction);
+    const lastPredictionChar = document.getElementById('lastPredictionText').textContent;
+    const userLabel = charToIndex(lastPredictionChar);
+    if (userLabel !== null) await sendFeedbackToServer(userLabel);
   };
 
-  document.getElementById('feedbackNoBtn').onclick = () => {
+   document.getElementById('feedbackNoBtn').onclick = () => {
     document.getElementById('correctionUI').style.display = 'inline-block';
+    const lastPredictionChar = document.getElementById('lastPredictionText').textContent;
+    if (lastPredictionChar) document.getElementById('correctLabelInput').value = lastPredictionChar;
   };
 
   document.getElementById('submitCorrectionBtn').onclick = async () => {
-    const correctLabel = parseInt(document.getElementById('correctLabelInput').value);
-    if (!isNaN(correctLabel)) {
-      document.getElementById('correctionUI').style.display = 'none';
-      await sendFeedbackToServer(correctLabel);
+    const input = document.getElementById('correctLabelInput').value.trim();
+    const label = charToIndex(input);
+    if (label === null) {
+      alert("Invalid input! Use 0-9, A-Z, or a-z");
+      return;
     }
+
+    document.getElementById('correctionUI').style.display = 'none';
+    await sendFeedbackToServer(label);
   };
 
   const btn = document.getElementById('predictBtn');

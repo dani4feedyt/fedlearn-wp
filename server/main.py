@@ -1,21 +1,16 @@
-﻿
-from gevent import monkey
+﻿from gevent import monkey
 monkey.patch_all()
 import json
 import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
 from tensorflow.keras import models, layers, optimizers, regularizers
-from keras.datasets import mnist
+from scipy.io import loadmat
 import threading
 import os
 import time
 from datetime import datetime
 from flask_socketio import SocketIO
-
-# TODO fix the bug that repeatedly sends sample if the save drawing as sample button is pressed
-# TODO check server no-pull to truenas
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIR = os.path.join(BASE_DIR, "..", "client")
@@ -23,7 +18,7 @@ CLIENT_DIR = os.path.join(BASE_DIR, "..", "client")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-MODEL_FILE = os.path.join(DATA_DIR, "saved_model.keras")
+MODEL_FILE = os.path.join(DATA_DIR, "saved_model_emnist.keras")
 LOG_FILE = os.path.join(DATA_DIR, "evaluation_log.json")
 
 
@@ -41,13 +36,27 @@ community_feedback = {}
 
 previous_round_status = "No previous rounds yet, or model was initialized one round ago."
 
-(_, _), (x_test, y_test) = mnist.load_data()
-x_test = x_test.astype("float32") / 255.0
+NUM_CLASSES = 62  # digits + uppercase + lowercase
+
+emnist_path = os.path.join(DATA_DIR, "emnist-byclass.mat")
+if not os.path.exists(emnist_path):
+    raise FileNotFoundError(f"EMNIST ByClass .mat file not found at {emnist_path}")
+
+emnist_data = loadmat(emnist_path)
+
+train_set = emnist_data['dataset']['train'][0,0]
+test_set  = emnist_data['dataset']['test'][0,0]
+
+x_test = test_set['images'][0,0].T.astype("float32") / 255.0
+y_test_raw = test_set['labels'][0,0].flatten()
+
 x_test = x_test.reshape(-1, 28*28)
-y_test = tf.keras.utils.to_categorical(y_test, 10)
+y_test = tf.keras.utils.to_categorical(y_test_raw, NUM_CLASSES)
+
+x_test = x_test.reshape(-1,28,28).transpose(0,2,1)[:,::-1,:].reshape(-1,784)
 
 
-def create_model():
+def create_model(num_classes=NUM_CLASSES):
     model = models.Sequential([
         layers.Input(shape=(784,)),
         layers.Dense(
@@ -63,7 +72,7 @@ def create_model():
             kernel_regularizer=regularizers.l2(1e-4)
         ),
         layers.Dense(
-            10,
+            num_classes,
             activation='softmax',
             kernel_initializer='glorot_uniform'
         )
