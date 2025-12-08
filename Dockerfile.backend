@@ -1,17 +1,17 @@
-FROM nvidia/cuda:11.2.2-runtime-ubuntu20.04
-
-ENV DEBIAN_FRONTEND=noninteractive
-RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtim
+FROM tensorflow/tensorflow:2.10.1-gpu
 
 WORKDIR /app
 
+# Install system packages
 RUN apt-get update && apt-get install -y \
     python3-pip python3-dev \
     libglib2.0-0 libsm6 libxrender1 libxext6 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY server/requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Do NOT install another TensorFlow; already included.
+RUN pip3 install --no-cache-dir -r requirements.txt --no-deps
 
 COPY server /app
 
