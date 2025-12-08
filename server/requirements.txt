@@ -1,6 +1,6 @@
 ﻿flask
 tensorflow==2.12.0
-numpy>=2.0
+numpy==1.22
 keras
 gevent
 flask_socketio
