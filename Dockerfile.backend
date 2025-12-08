@@ -1,5 +1,8 @@
 FROM nvidia/cuda:11.2.2-runtime-ubuntu20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtim
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
