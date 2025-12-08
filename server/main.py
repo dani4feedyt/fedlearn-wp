@@ -103,13 +103,8 @@ def get_model_size_kb():
 
 
 def extract_weights(model):
-    arrays = []
-    shapes = []
-
-    for w in model.weights:
-        arrays.append(K.get_value(w))
-        shapes.append(w.shape)
-    
+    arrays = [K.get_value(w).flatten().tolist() for w in model.weights]
+    shapes = [list(w.shape) for w in model.weights]
     return arrays, shapes
 
 
