@@ -40,7 +40,7 @@ NUM_CLASSES = 62  # digits + uppercase + lowercase
 
 emnist_path = os.path.join(DATA_DIR, "emnist-byclass.mat")
 if not os.path.exists(emnist_path):
-    raise FileNotFoundError(f"EMNIST ByClass .mat file not found at {emnist_path}")
+    raise FileNotFoundError(f"EMNIST .mat file not found at {emnist_path}")
 
 emnist_data = loadmat(emnist_path)
 
