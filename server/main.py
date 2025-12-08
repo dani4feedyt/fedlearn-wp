@@ -4,8 +4,7 @@ import json
 import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
-tf.config.run_functions_eagerly(True)
-tf.compat.v1.enable_eager_execution()
+from tensorflow.keras import backend as K
 from tensorflow.keras import models, layers, optimizers, regularizers
 from scipy.io import loadmat
 import threading
@@ -104,9 +103,13 @@ def get_model_size_kb():
 
 
 def extract_weights(model):
-    weights = model.get_weights()
-    shapes = [w.shape for w in weights]
-    arrays = [w.flatten().tolist() for w in weights]
+    arrays = []
+    shapes = []
+
+    for w in model.weights:
+        arrays.append(K.get_value(w))
+        shapes.append(w.shape)
+    
     return arrays, shapes
 
 
