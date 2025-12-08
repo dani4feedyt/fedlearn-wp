@@ -10,8 +10,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./server:/app
-      - fedlearn_data:/app/data
+      - ./server/data:/app/data
     networks:
       - proxy
 
@@ -28,7 +27,6 @@ services:
       - default
 
 volumes:
-  fedlearn_data:
 
 networks:
   proxy:
