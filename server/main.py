@@ -4,6 +4,8 @@ import json
 import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
+tf.config.run_functions_eagerly(True)
+tf.compat.v1.enable_eager_execution()
 from tensorflow.keras import models, layers, optimizers, regularizers
 from scipy.io import loadmat
 import threading
