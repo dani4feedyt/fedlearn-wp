@@ -26,7 +26,7 @@ services:
       - proxy
       - default
 
-volumes:
+volumes: {}
 
 networks:
   proxy:
