@@ -4,3 +4,4 @@ numpy>=2.0
 keras
 gevent
 flask_socketio
+scipy>=1.15.0
