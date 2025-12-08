@@ -1,7 +1,6 @@
 ﻿flask
 tensorflow==2.10.1
 numpy==1.23.5
-keras
 gevent
 flask_socketio
 scipy>=1.7.3
