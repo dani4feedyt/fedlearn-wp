@@ -4,3 +4,4 @@ numpy==1.23.5
 gevent
 flask_socketio
 scipy>=1.7.3
+greenlet
