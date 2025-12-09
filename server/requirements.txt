@@ -8,3 +8,4 @@ flask_socketio
 scipy>=1.7.3
 greenlet
 click
+blinker
