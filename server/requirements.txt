@@ -19,3 +19,4 @@ bidict
 requests
 protobuf==3.19.6
 h5py
+gevent-websocket==0.10.1
