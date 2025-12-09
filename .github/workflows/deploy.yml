@@ -36,6 +36,7 @@ jobs:
           sudo docker compose up -d --build frontend
           sudo docker rm -f fedlearn-backend || true
           sudo docker run --gpus all -d \
+            --network proxy \
             -p 5000:5000 \
             -v /mnt/Pull1/Scripts/federated_learning/server/data:/app/data \
             --name fedlearn-backend \
