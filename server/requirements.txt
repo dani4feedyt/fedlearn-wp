@@ -1,4 +1,5 @@
 ﻿flask
+zope.interface
 tensorflow==2.10.1
 numpy==1.23.5
 gevent
