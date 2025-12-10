@@ -22,6 +22,18 @@ os.makedirs(DATA_DIR, exist_ok=True)
 MODEL_FILE = os.path.join(DATA_DIR, "saved_model_emnist.keras")
 LOG_FILE = os.path.join(DATA_DIR, "evaluation_log.json")
 
+gpus = tf.config.list_physical_devices('GPU')
+print("GPUs detected:", gpus)
+
+tf.debugging.set_log_device_placement(True)
+
+with tf.device('/GPU:0'):
+    a = tf.random.normal((1000, 1000))
+    b = tf.random.normal((1000, 1000))
+    c = tf.matmul(a, b)
+
+print("Computation done on GPU!")
+
 
 global_model = None
 global_model_initialized = False
@@ -46,7 +58,7 @@ emnist_path = os.path.join(DATA_DIR, "emnist-byclass.mat")
 emnist_data = loadmat(emnist_path)
 
 train_set = emnist_data['dataset']['train'][0,0]
-test_set  = emnist_data['dataset']['test'][0,0]
+test_set = emnist_data['dataset']['test'][0,0]
 
 x_test = test_set['images'][0,0].T.astype("float32") / 255.0
 y_test_raw = test_set['labels'][0,0].flatten()
