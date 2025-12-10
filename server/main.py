@@ -13,7 +13,6 @@ import time
 import gc
 from datetime import datetime
 from flask_socketio import SocketIO
-from numba import cuda
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
