@@ -22,18 +22,6 @@ os.makedirs(DATA_DIR, exist_ok=True)
 MODEL_FILE = os.path.join(DATA_DIR, "saved_model_emnist.keras")
 LOG_FILE = os.path.join(DATA_DIR, "evaluation_log.json")
 
-gpus = tf.config.list_physical_devices('GPU')
-print("GPUs detected:", gpus)
-
-tf.debugging.set_log_device_placement(True)
-
-with tf.device('/GPU:0'):
-    a = tf.random.normal((1000, 1000))
-    b = tf.random.normal((1000, 1000))
-    c = tf.matmul(a, b)
-
-print("Computation done on GPU!")
-
 
 global_model = None
 global_model_initialized = False
@@ -300,7 +288,7 @@ def evaluate_model(round_override=None):
     if not global_model_initialized:
         return jsonify({"initialized": False})
 
-    loss, acc = global_model.evaluate(x_test, y_test, verbose=0)
+    loss, acc = global_model.evaluate(x_test, y_test, batch_size=512, verbose=0)
 
     if round_override is not None:
         current_round = round_override
