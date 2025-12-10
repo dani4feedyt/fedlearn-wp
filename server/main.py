@@ -10,8 +10,10 @@ from scipy.io import loadmat
 import threading
 import os
 import time
+import gc
 from datetime import datetime
 from flask_socketio import SocketIO
+from numba import cuda
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -63,6 +65,11 @@ x_test = x_test.reshape(-1, 28*28)
 y_test = tf.keras.utils.to_categorical(y_test_raw, NUM_CLASSES)
 
 x_test = x_test.reshape(-1,28,28).transpose(0,2,1)[:,::-1,:].reshape(-1,784)
+
+
+def cleanup_tf():
+    K.clear_session()
+    gc.collect()
 
 
 def create_model(num_classes=NUM_CLASSES):
@@ -296,7 +303,7 @@ def evaluate_model(round_override=None):
     if not global_model_initialized:
         return jsonify({"initialized": False})
 
-    loss, acc = global_model.evaluate(x_test, y_test, batch_size=512, verbose=0)
+    loss, acc = global_model.evaluate(x_test, y_test, batch_size=256, verbose=0)
 
     if round_override is not None:
         current_round = round_override
@@ -317,6 +324,8 @@ def evaluate_model(round_override=None):
 
     eval_log.append(entry)
     save_eval_log()
+
+    cleanup_tf()
 
     return entry
 
