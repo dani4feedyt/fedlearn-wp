@@ -54,7 +54,6 @@
 <body>
 
   <h2 class="centered-flex">In-Page Federated Learning</h2>
-  <div id="status" class="centered-flex"><b>Status:</b> idle</div>
 
   <div class="section">
     <h3>Draw a Character (0–9, A–Z, a–z)</h3>
@@ -68,13 +67,6 @@
           <div style="display:flex; flex-direction:row; gap:12px;">
             <button id="predictBtn" style="width:280px; height:40px;">Predict Drawn Digit</button>
             <button id="clearBtn" style="width:280px; height:40px;">Clear</button>
-            <button id="trainBtn" style="width:280px; height:40px;">Clear</button>
-            <label>
-      Label:
-      <input type="text" maxlength="1" id="digitLabel"  style="width:50px;">
-    </label>
-
-    <button id="saveDrawingBtn">Save Drawing as Sample</button>
           </div>
       </div>
 
@@ -115,7 +107,7 @@
 
     <div style="margin-top:8px; font-size:0.9em;">
       Community evaluated accuracy (latest): <span id="userAccDisplay">N/A</span>
-      &nbsp;|&nbsp; MNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
+      &nbsp;|&nbsp; EMNIST accuracy (latest): <span id="mnistAccDisplay">N/A</span>
       Model size:<span id="modelSize"> 0 KB</span>
     </div>
     <div id="roundInfo">

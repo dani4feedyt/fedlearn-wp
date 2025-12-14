@@ -641,7 +641,7 @@ async function drawCombinedAccuracyChart() {
   ctx.fillStyle = "#0077ff";
   ctx.fillRect(right - 60, top + 4, 12, 8);
   ctx.fillStyle = "#000";
-  ctx.fillText("MNIST", right - 40, top + 12);
+  ctx.fillText("EMNIST", right - 40, top + 12);
 }
 
 
@@ -705,12 +705,12 @@ setInterval(refreshChart, 60_000);
 
 
 window.onload = () => {
-  document.getElementById('saveDrawingBtn').onclick = () => {
-   const label = parseInt(document.getElementById('digitLabel').value);
-   const arr = preprocessCanvasToMNIST();
-   localData.push({ x: arr, y: label });
-   log(`Saved drawing (${label}). Total ${localData.length}`);
-  };
+  //document.getElementById('saveDrawingBtn').onclick = () => {
+  //  const label = parseInt(document.getElementById('digitLabel').value);
+  //  const arr = preprocessCanvasToMNIST();
+  //  localData.push({ x: arr, y: label });
+  //  log(`Saved drawing (${label}). Total ${localData.length}`);
+  //};
 
   //document.getElementById('uploadBtn').onclick = async () => {
   //  const f = document.getElementById('uploadImage').files[0];
@@ -753,7 +753,7 @@ window.onload = () => {
       await predictDrawnDigit();
     };
 
-  document.getElementById('trainBtn').onclick = localTrainAndSubmit;
+  //document.getElementById('trainBtn').onclick = localTrainAndSubmit;
 
   //document.getElementById('evalBtn').onclick = async () => {
   //  const res = await fetch(`${baseroute}/api/evaluate_model`);
